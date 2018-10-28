@@ -1,0 +1,24 @@
+<DeltaVOpcHdaClient>
+      <Configuration>
+        <OutputFileName>raw_mpt_opt</OutputFileName>
+        <OutputDirectory>.\packed\temp</OutputDirectory>
+        <OutputFileFormat>XML</OutputFileFormat>
+        <LogFileName>log_raw_mpt</LogFileName>
+        <LogFileDirectory>.\packed\temp</LogFileDirectory>
+        <TimeSetting>UTC</TimeSetting>
+        <HostName>localhost</HostName>
+      </Configuration>
+      <Execution>
+        <Steps>
+          <Step>
+            <Interface>IOPCHDA_SyncRead</Interface>
+            <Method>ReadRaw</Method>
+            <ItemID>V1-COMMON/BATCH_ID.CV</ItemID>
+            <StartTime>2018-10-08 13:34:23</StartTime>
+            <EndTime>2018-10-10 13:34:23</EndTime>
+            <NumValues>0</NumValues>
+            <Bounds>TRUE</Bounds>
+          </Step>
+        </Steps>
+      </Execution>
+    </DeltaVOpcHdaClient>

@@ -1,0 +1,25 @@
+<DeltaVOpcHdaClient>
+      <Configuration>
+        <OutputFileName>itv_1pt_opt</OutputFileName>
+        <OutputDirectory>.\packed\temp</OutputDirectory>
+        <OutputFileFormat>XML</OutputFileFormat>
+        <LogFileName>log_itv_1pt</LogFileName>
+        <LogFileDirectory>.\packed\temp</LogFileDirectory>
+        <TimeSetting>UTC</TimeSetting>
+        <HostName>localhost</HostName>
+      </Configuration>
+      <Execution>
+        <Steps>
+          <Step>
+            <Interface>IOPCHDA_SyncRead</Interface>
+            <Method>ReadProcessed</Method>
+            <ItemID>V1-COMMON/BATCH_ID.CV</ItemID>
+            <StartTime>2018-10-22 13:34:23</StartTime>
+            <EndTime>2018-10-22 13:34:23</EndTime>
+            <ResampleInterval>14400000</ResampleInterval>
+            <NumValues>1</NumValues>
+            <Bounds>TRUE</Bounds>
+          </Step>
+        </Steps>
+      </Execution>
+    </DeltaVOpcHdaClient>
