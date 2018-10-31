@@ -8,9 +8,8 @@ from XF_common.XF_SQL import DV_SOE
 from XF_common.XF_SERIALIZING import *
 from XF_common.XF_LOG_MANAGE import add_log, logable, log_print
 from XF_common.XF_PATH import list_file_names
-from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_raw_1pt,read_mpt
-from XF_common.XF_DV_HIST import execute_xml #debug
-
+from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_1pt,read_mpt,XML_CONSTANT
+from XF_common.XF_DV_HIST import execute_xml, Value_Log, valid_batch_id #debug
 
 BATCH_STATUS = ('undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
@@ -397,7 +396,7 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         element_tree = None
         execute_xml(xml_path)
         result_path = r".\packed\temp\raw_1pt_opt.xml"
-        read_raw_1pt(result_path)
+        read_1pt(result_path)
 
         element_tree = create_raw_1pt_xml(dt,item_id)
         xml_path = r'.\packed\temp\_raw_1pt.tmp'
@@ -448,13 +447,29 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
-        """temp to delete"""
+        """main test, [fn]complete_batch_item"""
         print("===============tst_temp4 strat==============")
-        xml_path = r'.\packed\temp\_raw_1pt.tmp1'
-        with open(r'.\packed\temp\_raw_1pt.tmp1','r') as xml:
-            valid_xml(r'.\packed\temp\DvOpcHda.xsd',xml)
-        execute_xml(xml_path)
-        Popen(["notepad", r".\packed\temp\raw_1pt_1.csv"])
+        start_s = datetime.now()
+        main.model_init()
+        main.soe_dbs_profile()
+        main.print_soe_db_profiles() #opitional
+        v=vessels["V1"]
+        start_time = main.verify_log_time(v)[1]
+        if not isinstance(start_time,datetime):
+            print("start_time was: {}".format(start_time))
+            start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
+        print("multi_dbs_enquiry().start_time:{}".format(start_time))
+        rslt_batch_start = main.multi_dbs_enquiry(v,start_time)
+        #v.print_vessel_last_scan()
+        #v.print_batch_items()
+        print("********")
+        main.fill_batch_items(v,rslt_batch_start)
+        #v.print_batch_items()
+        for item in v.batch_items:
+            item.complete_batch_item()
+        v.print_batch_items()
+        start_e = datetime.now()
+        print(start_e - start_s)
         print("===============tst_temp4 end==============")
 
     def on_exit(self):
@@ -487,7 +502,7 @@ class Vessel():
     def print_batch_items(self):
         log_print("[fn]Vessel.print_batch_items()------start------")
         i = 0
-        log_print("   #: vessel     status             start                       end")
+        log_print("   #: Vessel     Batch_ID     Status             Start                       End                    Duration")
         for batch in self.batch_items:
             i += 1
             start_time = dt_f_to_string(batch.batch_start_time)
@@ -498,8 +513,9 @@ class Vessel():
                     end_time = '--now--'
                 else:
                     end_time = '--unkonwn--'
+            duration = str(batch.duration)[:-7]
             #log_print("	{:0>4d}:{:x<8d}  {:x<10d}  {}".format(i,batch.vessel_no,batch.batch_status,start_time))
-            log_print("{:>4d}: {:<10} {:<10} {}    {}".format(i,batch.vessel_no,batch.batch_status,start_time,end_time))
+            log_print("{:>4d}: {:<10} {:<12} {:<10} {:<24}    {:<24} {:>16} ".format(i,batch.vessel_no,batch.batch_id,batch.batch_status,start_time,end_time,duration))
         log_print("[fn]Vessel.print_batch_items()------end------")
 
 class SOE_Scan_Rslt():
@@ -534,8 +550,34 @@ class Batch_Item():
 
     def complete_batch_item(self):
         """fill the fields when status changed to 'Completed'"""
-        self.duration = self.batch_end_time - self.batch_start_time
-        print(self.duration) #debug
+        def last_valid_value(values):
+            """reverse order value_log validate.
+            -return:
+            -values: <[value_log,...]>"""
+        if isinstance(self.batch_end_time,datetime):
+            self.duration = self.batch_end_time - self.batch_start_time
+        else:
+            self.duration = datetime.utcnow() - self.batch_start_time
+        #running batch is not handled yet, debug
+        item_id = self.vessel_no + r"-COMMON/BATCH_ID.CV"
+        dt = self.batch_end_time
+        element_tree = create_raw_1pt_xml(dt,item_id)
+        xml_path = XML_CONSTANT['raw_1pt']['xml_path']
+        generate_xml(element_tree,xml_path)
+        element_tree = None
+        execute_xml(xml_path)
+        result_path = XML_CONSTANT['raw_1pt']['result_path']
+        batch_id = read_1pt(result_path)
+        if valid_batch_id(batch_id.value):
+            self.batch_id = batch_id.value.strip()
+        else:
+            start_time = self.batch_start_time
+            end_time = self.batch_end_time
+            element_tree = create_raw_mpt_xml(start_time,end_time,item_id)
+            xml_path = XML_CONSTANT['raw_mpt']['xml_path']
+            generate_xml(element_tree,xml_path)
+            print("continue work here 0010")
+
         print("[fn]complete_batch_item(), to be complete")#to be complete
 
     def print_batch_item(self):
