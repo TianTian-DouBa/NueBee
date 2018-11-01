@@ -502,7 +502,7 @@ class Vessel():
     def print_batch_items(self):
         log_print("[fn]Vessel.print_batch_items()------start------")
         i = 0
-        log_print("   #: Vessel     Batch_ID     Status             Start                       End                    Duration")
+        log_print("   #: Vessel     Batch_ID         Status             Start                       End                    Duration         Operation")
         for batch in self.batch_items:
             i += 1
             start_time = dt_f_to_string(batch.batch_start_time)
@@ -515,7 +515,7 @@ class Vessel():
                     end_time = '--unkonwn--'
             duration = str(batch.duration)[:-7]
             #log_print("	{:0>4d}:{:x<8d}  {:x<10d}  {}".format(i,batch.vessel_no,batch.batch_status,start_time))
-            log_print("{:>4d}: {:<10} {:<12} {:<10} {:<24}    {:<24} {:>16} ".format(i,batch.vessel_no,batch.batch_id,batch.batch_status,start_time,end_time,duration))
+            log_print("{:>4d}: {:<10} {:<16} {:<10} {:<24}    {:<24} {:>16}      {:<16} ".format(i,batch.vessel_no,batch.batch_id,batch.batch_status,start_time,end_time,duration,batch.operation))
         log_print("[fn]Vessel.print_batch_items()------end------")
 
 class SOE_Scan_Rslt():
@@ -550,17 +550,26 @@ class Batch_Item():
 
     def complete_batch_item(self):
         """fill the fields when status changed to 'Completed'"""
-        def last_valid_value(values):
+        def last_valid_value(batch_id_logs):
             """reverse order value_log validate.
             -return:
-            -values: <[value_log,...]>"""
+            -batch_id_logs: <[value_log,...]>"""
+            result = '--none--'
+            for log in reversed(batch_id_logs):
+                if valid_batch_id(log.value) != '--none--':
+                    result = log.value.strip()
+                    return result
+            return result
+
+        #complete duration
         if isinstance(self.batch_end_time,datetime):
             self.duration = self.batch_end_time - self.batch_start_time
         else:
-            self.duration = datetime.utcnow() - self.batch_start_time
-        #running batch is not handled yet, debug
-        item_id = self.vessel_no + r"-COMMON/BATCH_ID.CV"
+            self.duration = datetime.utcnow() - self.batch_start_time #handle running batch
         dt = self.batch_end_time
+
+        #complete batch_id
+        item_id = self.vessel_no + r"-COMMON/BATCH_ID.CV"
         element_tree = create_raw_1pt_xml(dt,item_id)
         xml_path = XML_CONSTANT['raw_1pt']['xml_path']
         generate_xml(element_tree,xml_path)
@@ -568,7 +577,7 @@ class Batch_Item():
         execute_xml(xml_path)
         result_path = XML_CONSTANT['raw_1pt']['result_path']
         batch_id = read_1pt(result_path)
-        if valid_batch_id(batch_id.value):
+        if valid_batch_id(batch_id.value) != '--none--':
             self.batch_id = batch_id.value.strip()
         else:
             start_time = self.batch_start_time
@@ -576,9 +585,34 @@ class Batch_Item():
             element_tree = create_raw_mpt_xml(start_time,end_time,item_id)
             xml_path = XML_CONSTANT['raw_mpt']['xml_path']
             generate_xml(element_tree,xml_path)
-            print("continue work here 0010")
+            element_tree = None
+            execute_xml(xml_path)
+            result_path = XML_CONSTANT['raw_mpt']['result_path']
+            batch_id_logs = read_mpt(result_path)
+            self.batch_id = last_valid_value(batch_id_logs)
 
-        print("[fn]complete_batch_item(), to be complete")#to be complete
+        #complete operation
+        item_id = self.vessel_no + r"-COMMON/OPERATION.CV"
+        element_tree = create_raw_1pt_xml(dt,item_id)
+        xml_path = XML_CONSTANT['raw_1pt']['xml_path']
+        generate_xml(element_tree,xml_path)
+        element_tree = None
+        execute_xml(xml_path)
+        result_path = XML_CONSTANT['raw_1pt']['result_path']
+        operation = read_1pt(result_path)
+        if valid_batch_id(operation.value) != '--none--':
+            self.operation = operation.value.strip()
+        else:
+            start_time = self.batch_start_time
+            end_time = self.batch_end_time
+            element_tree = create_raw_mpt_xml(start_time,end_time,item_id)
+            xml_path = XML_CONSTANT['raw_mpt']['xml_path']
+            generate_xml(element_tree,xml_path)
+            element_tree = None
+            execute_xml(xml_path)
+            result_path = XML_CONSTANT['raw_mpt']['result_path']
+            operation_logs = read_mpt(result_path)
+            self.operation = last_valid_value(operation_logs)
 
     def print_batch_item(self):
         log_print("[fn]Batch_Item.print_batch_item():------start------")

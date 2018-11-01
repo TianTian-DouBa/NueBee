@@ -13,9 +13,9 @@
           <Step>
             <Interface>IOPCHDA_SyncRead</Interface>
             <Method>ReadRaw</Method>
-            <ItemID>V1-COMMON/BATCH_ID.CV</ItemID>
-            <StartTime>2018-10-08 13:34:23</StartTime>
-            <EndTime>2018-10-10 13:34:23</EndTime>
+            <ItemID>V1-COMMON/OPERATION.CV</ItemID>
+            <StartTime>2018-10-31 14:28:12</StartTime>
+            <EndTime>2018-10-31 15:38:41</EndTime>
             <NumValues>0</NumValues>
             <Bounds>TRUE</Bounds>
           </Step>
