@@ -502,7 +502,7 @@ class Vessel():
     def print_batch_items(self):
         log_print("[fn]Vessel.print_batch_items()------start------")
         i = 0
-        log_print("   #: Vessel     Batch_ID         Status             Start                       End                    Duration         Operation")
+        log_print("   #: Vessel     Batch_ID         Status             Start                       End                    Duration        Operation")
         for batch in self.batch_items:
             i += 1
             start_time = dt_f_to_string(batch.batch_start_time)
