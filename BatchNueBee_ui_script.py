@@ -11,7 +11,7 @@ from XF_common.XF_PATH import list_file_names
 from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_1pt,read_mpt,XML_CONSTANT
 from XF_common.XF_DV_HIST import execute_xml, Value_Log, valid_batch_id #debug
 
-BATCH_STATUS = ('undefined','Running','Completed','Void')
+BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
 VESSEL_LAST_SCAN_SURFIX = "_last_scan.dtp"
 VESSEL_BATCH_ITEMS_SURFIX = "_batches.dtp"
@@ -51,146 +51,6 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             v = Vessel(vessel_no)
             vessels[vessel_no] = v
 
-    def verify_log_time(self, vessel):
-        """验证vessel中的记录的时间逻辑是否合理，返回soe扫描的起始时间
-        -vessel: instance of Vessel
-        rtn: (rslt_order, rslt_time)
-        - ('match', <datetime>last_scan_time)
-        - ('last_log_early', <datetime>last_scan_time)
-        - ('batch_item_early', <datetime>batch_end_time/batch_start_time
-        - ('no_log', None)"""
-        assert isinstance(vessel.last_scan, Vessel_Last_Scan)
-        last_scan_time = frac_to_msec(vessel.last_scan.last_log_time, \
-                                      vessel.last_scan.last_log_frac_sec) #
-        if len(vessel.batch_items) > 0:
-            last_batch = vessel.batch_items[-1]
-        else:
-            last_batch = None
-        if isinstance(last_batch, Batch_Item):
-            assert isinstance(last_batch.batch_start_time, datetime)
-            if isinstance(last_batch.batch_end_time, datetime):
-                assert last_batch.batch_end_time > last_batch.batch_start_time
-                assert vessel.last_scan.last_batch_status != BATCH_STATUS[1] #Running
-                if last_scan_time == last_batch.batch_end_time:
-                    rslt_time = last_scan_time #将之前扫入的最后条log的时间作为返回结果（部分），供新的SOE扫描开始时间（调整前）
-                    rslt_order = TIME_STAMP_ORDER[0] #match
-                else:
-                    if last_scan_time < last_batch.batch_end_time:
-                        rslt_time = last_scan_time
-                        rslt_order = TIME_STAMP_ORDER[2] #last_log_early
-                    else:
-                        rslt_time = last_batch.batch_end_time
-                        rslt_order = TIME_STAMP_ORDER[1] #batch_item_early
-            else: #没有batch_end_time
-                assert vessel.last_scan.last_batch_status != BATCH_STATUS[2] #Completed
-                if last_scan_time == last_batch.batch_start_time:
-                    rslt_time = last_scan_time #将之前扫入的最后条log的时间作为返回结果（部分），供新的SOE扫描开始时间（调整前）
-                    rslt_order = TIME_STAMP_ORDER[0] #match
-                else:
-                    if last_scan_time < last_batch.batch_end_time:
-                        rslt_time = last_scan_time
-                        rslt_order = TIME_STAMP_ORDER[2] #last_log_early
-                    else:
-                        rslt_time = last_batch.batch_start_time
-                        rslt_order = TIME_STAMP_ORDER[1] #batch_item_early
-        else:
-            rslt_time = None
-            rslt_order = TIME_STAMP_ORDER[3] #no_log
-        result = (rslt_order, rslt_time)
-        log_args = [rslt_order, rslt_time, vessel.vessel_no]
-        add_log(40, "fn:valid_log_time return. '{0[2]}' rslt_order:'{0[0]}' rslt_time:'{0[1]}'", log_args)
-        if logable(40):
-            log_print("--------fn: valid_log_time() start--------")
-            try:
-                log_print("last_scan_time: {}".format(dt_to_string(last_scan_time)))
-                log_print("last_batch_start_time: {}".format(dt_to_string(last_batch.batch_start_time)))
-                log_print("last_batch_end_time: {}".format(dt_to_string(last_batch.batch_end_time)))
-            except:
-                add_log(30, "fn:valid_log_time(), exccept when print log")
-            log_print("--------fn: valid_log_time() end--------")
-        return result
-
-    def batch_split(self, vessel, start_point=1):
-        """将批次的按开始和结束时间划开，并加入Batch_ID和Operation信息
-        -vessel: instance of Vessel
-        -start_point: 起始点的选项, [0]self.DEF_START_TIME [1]文件中的最后点 [2]用户设置"""
-        if start_point == 0:
-            _start_point = self.DEF_START_TIME
-            frac_sec = 0
-        elif start_point == 1:
-            _start_point = vessel.last_scan.last_log_time
-            frac_sec = vessel.last_scan.frac_sec
-        elif start_point == 2:
-            print("to be completed") #to be completed
-            frac_sec = 0 #to be complete
-
-        module = vessel.vessel_no.upper() + r"-COMMON"
-        adjusted_to_start = time_adjust_m30M(_start_point)
-
-        dv_soe = DV_SOE()
-        sql = dv_soe.sql_batch_start(module, adjusted_to_start, frac_sec)
-        if sql:
-            batch_start_table = dv_soe.enquiry(sql) #batch_start parameter
-            dv_soe.close()
-        dv_soe = None
-        self.dump_vessel_last_scan(vessel_no)
-        self.vessel_last_scan = self.load_vessel_last_scan(vessel_no)
-
-    def dump_vessel_last_scan(self, vessel_last_scan):
-        """将vessel.last_scan结果导出文件
-        vessel_last_scan: vessel.last_scan"""
-        surfix = VESSEL_LAST_SCAN_SURFIX
-        if isinstance(vessel_last_scan, Vessel_Last_Scan):
-            _obj = vessel_last_scan
-            serializing(_obj, DEF_PACKED_PATH + _obj.vessel_no + surfix)
-        else:
-            log_args = [vessel_last_scan]
-            add_log(10, "fn:dump_vessel_last_scan. obj '{0[0]}' is not instance of Vessel_Last_Scan", log_args)
-
-    def load_vessel_last_scan(self, vessel_no, init = False):
-        """从文件或以默认初始值，加载前次扫描的Vessel状态
-        -vessel_no: <string>
-        -init = True 以默认初始值载入， False从文件载入"""
-        if init == False:   #从文件读入
-            surfix = VESSEL_LAST_SCAN_SURFIX
-            result = load(DEF_PACKED_PATH + vessel_no + surfix)
-        else:    #使用默认初始值加载
-            result = Vessel_Last_Scan()
-            result.vessel_no = vessel_no
-            result.last_batch_status = BATCH_STATUS[2]
-            result.last_log_time_s = INIT_TIME_STRING
-            result.last_log_frac_sec = 0
-            _time = string_to_dt(result.last_log_time_s)
-            result.last_log_time = frac_to_msec(_time,result.last_log_frac_sec)
-            add_log(30, 'fn:load_vessel_last_scan(); load with initial setting')
-        add_log(40, "fn:load_vessel_last_scan() -return start---------------------")
-        if logable(40) and result:
-            log_print("result.vessel_no: {}".format(result.vessel_no))
-            log_print("result.last_batch_status: {}".format(result.last_batch_status))
-            log_print("result.last_log_time_s: {}".format(result.last_log_time_s))
-            log_print("result.last_log_frac_sec: {}".format(result.last_log_frac_sec))
-            log_print("result.last_log_time: {}".format(result.last_log_time))
-        add_log(40, "fn:load_vessel_last_scan() -return end---------------------")
-        return result
-
-    def dump_vessel_batch_items(self, vessel):
-        """将该vessel的批次摘要导出到文件"""
-        surfix = VESSEL_BATCH_ITEMS_SURFIX
-        if isinstance(vessel, Vessel):
-            _obj = vessel.batch_items
-            serializing(_obj, DEF_PACKED_PATH + vessel.vessel_no + surfix)
-        else:
-            log_args = [vessel]
-            add_log(10, "fn:dump_vessel_batch_items. obj '{0[0]}' is not instance of Vessel", log_args)
-
-    def load_vessel_batch_items(self, vessel_no):
-        """从文件或以默认初始值，加载batch_item"""
-        surfix = VESSEL_BATCH_ITEMS_SURFIX
-        result = load(DEF_PACKED_PATH + vessel_no + surfix)
-        if not result:
-            result = []
-        return result
-
     def soe_dbs_profile(self):
         """在SOE Server上，在线的SOE存储文件的启止时间档案
         - [global] soe_db_profiles: 插入有效的soe_db对应的<Soe_Db_Profile>
@@ -198,6 +58,11 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         global soe_db_files, soe_db_profiles, ej_db_profile
         soe_db_profiles = []
         dv_soe = DV_SOE()
+
+        def take_start(obj):
+            """返回Soe_Db_Profile.db_start_time,用于自定义方法排序"""
+            return obj.db_start_time
+
         if dv_soe.conn == None: #判断pymssql.connect是否成功
             add_log(10,'fn:soe_dbs_profile();sql connection fail, aborted')
             return
@@ -215,7 +80,6 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             soe_db_files = []
             for i in _br[1]:
                 soe_db_files.append(i[len(path)+1:-len(extension)])
-
 
         add_log(30, 'fn:soe_dbs_profile() Start ===================')
         log_args = [_br[0]]
@@ -244,7 +108,7 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
                 except ValueError:
                     log_args = [i]
                     add_log(40, 'fn:soe_dbs_profile(), {0[0]} filtered out', log_args)
-        soe_db_profiles.sort(key=self.take_start,reverse=False)
+        soe_db_profiles.sort(key=take_start,reverse=False)
 
     def print_soe_db_profiles(self):
         """显示soe_db_profiles的内容"""
@@ -260,10 +124,6 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             print(".db_end_time = {}".format(i.db_end_time))
             print("----------------------------------------")
         print("[fn] print_soe_db_profiles() end ================")
-
-    def take_start(self, obj):
-        """返回Soe_Db_Profile.db_start_time,用于自定义方法排序"""
-        return obj.db_start_time
 
     def multi_dbs_enquiry(self,vessel, start_time, server = 'localhost'):
         """跨多个数据库文件查询Batch_Start
@@ -314,56 +174,6 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
                 print(i)
         add_log(30,'<fn>multi_dbs_enquiry().return end=============')
         return result
-
-    def fill_batch_items(self,vessel,batch_start_list):
-        """fill vessel.batch_items"""
-        def _new_batch_item():
-            """instance new batch_item from Batch_Item. internal use only"""
-            item = Batch_Item()
-            item.batch_start_time = log_time
-            item.batch_status = BATCH_STATUS[1] #'Running'
-            item.vessel_no = vessel.vessel_no
-            vessel.batch_items.append(item)
-
-        for log in batch_start_list:
-            log_time = frac_to_msec(log[1],log[2]) #convert log time to datatime is msec
-            if len(vessel.batch_items) > 0:
-                last_batch = vessel.batch_items[-1]
-                if last_batch.batch_status == BATCH_STATUS[1]: #'Running'
-                    if log[0] == '0': #parameter of batch_start_time
-                        last_batch.batch_end_time = log_time
-                        last_batch.batch_status = BATCH_STATUS[2] #'Completed'
-                        last_batch.complete_batch_item()
-                    elif log[0] == '1':
-                        running_last = log_time - last_batch.batch_start_time
-                        if running_last > timedelta(days=RUNNING_EXPIRE_DAYS):
-                            last_batch.batch_status = BATCH_STATUS[0] #'underfined'
-                            last_batch.comment = "set to 'undefined' by system"
-                            _new_batch_item()
-                        else:
-                            log_args = [log]
-                            add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
-                    else:
-                        log_args = [log[0]]
-                        add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
-                else: # not 'Running'
-                    if log[0] == '1': #parameter of batch_start_time
-                        _new_batch_item()
-                    elif log[0] == '0':
-                        log_args = [log]
-                        add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
-                    else:
-                        log_args = [log[0]]
-                        add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
-            else:
-                if log[0] == '1': #parameter of batch_start_time
-                    _new_batch_item()
-                elif log[0] == '0':
-                    log_args = [log]
-                    add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
-                else:
-                    log_args = [log[0]]
-                    add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
 
     def tst_temp1(self):
         """temp to delete"""
@@ -430,7 +240,7 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
         v=vessels["V1"]
-        start_time = main.verify_log_time(v)[1]
+        start_time = v.return_scan_time()[1]
         if not isinstance(start_time,datetime):
             print("start_time was: {}".format(start_time))
             start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
@@ -454,7 +264,7 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
         v=vessels["V1"]
-        start_time = main.verify_log_time(v)[1]
+        start_time = v.return_scan_time()[1]
         if not isinstance(start_time,datetime):
             print("start_time was: {}".format(start_time))
             start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
@@ -463,11 +273,12 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
         #v.print_vessel_last_scan()
         #v.print_batch_items()
         print("********")
-        main.fill_batch_items(v,rslt_batch_start)
+        v.fill_batch_items(rslt_batch_start)
         #v.print_batch_items()
         for item in v.batch_items:
             item.complete_batch_item()
         v.print_batch_items()
+        v.print_vessel_last_scan()
         start_e = datetime.now()
         print(start_e - start_s)
         print("===============tst_temp4 end==============")
@@ -480,20 +291,184 @@ class Vessel():
     """Vessel维度的状态"""
     def __init__(self, vessel_number):
         self.vessel_no = vessel_number
-        _load_rslt = main.load_vessel_last_scan(self.vessel_no)
+        _load_rslt = self.load_vessel_last_scan()
         if _load_rslt:
             log_args = [_load_rslt]
             add_log(30, "class:__init__() -self.last_scan: {0[0]} loaded", log_args)
         else:
-            _load_rslt = main.load_vessel_last_scan(self.vessel_no, init = True)
+            _load_rslt = self.load_vessel_last_scan(init = True)
             log_args = [_load_rslt]
             add_log(20, "class:__init__() -self.last_scan: {0[0]} load fail; used default data", log_args)
         self.last_scan = _load_rslt
-        self.batch_items = main.load_vessel_batch_items(vessel_number)
+        self.batch_items = self.load_vessel_batch_items()
+
+    def fill_batch_items(self,batch_start_list):
+            """fill vessel.batch_items"""
+            def _new_batch_item():
+                """instance new batch_item from Batch_Item. internal use only"""
+                item = Batch_Item()
+                item.batch_start_time = log_time
+                item.batch_status = BATCH_STATUS[1] #'Running'
+                item.vessel_no = self.vessel_no
+                self.batch_items.append(item)
+
+            for log in batch_start_list:
+                log_time = frac_to_msec(log[1],log[2]) #convert log time to datatime is msec
+                if len(self.batch_items) > 0:
+                    last_batch = self.batch_items[-1]
+                    if last_batch.batch_status == BATCH_STATUS[1]: #'Running'
+                        if log[0] == '0': #parameter of batch_start_time
+                            last_batch.batch_end_time = log_time
+                            last_batch.batch_status = BATCH_STATUS[2] #'Completed'
+                            last_batch.complete_batch_item()
+                        elif log[0] == '1':
+                            running_last = log_time - last_batch.batch_start_time
+                            if running_last > timedelta(days=RUNNING_EXPIRE_DAYS):
+                                last_batch.batch_status = BATCH_STATUS[0] #'underfined'
+                                last_batch.comment = "set to 'undefined' by system"
+                                _new_batch_item()
+                            else:
+                                log_args = [log]
+                                add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
+                        else:
+                            log_args = [log[0]]
+                            add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+                    else: # not 'Running'
+                        if log[0] == '1': #parameter of batch_start_time
+                            _new_batch_item()
+                        elif log[0] == '0':
+                            log_args = [log]
+                            add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
+                        else:
+                            log_args = [log[0]]
+                            add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+                else:
+                    if log[0] == '1': #parameter of batch_start_time
+                        _new_batch_item()
+                    elif log[0] == '0':
+                        log_args = [log]
+                        add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
+                    else:
+                        log_args = [log[0]]
+                        add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+
+    def return_scan_time(self):
+        """验证vessel中的记录的时间逻辑是否合理，返回soe扫描的起始时间
+        rtn: (rslt_order, rslt_time)
+        - ('match', <datetime>last_scan_time)
+        - ('last_log_early', <datetime>last_scan_time)
+        - ('batch_item_early', <datetime>batch_end_time/batch_start_time
+        - ('no_log', None)"""
+        assert isinstance(self.last_scan, Vessel_Last_Scan)
+        last_scan_time = frac_to_msec(self.last_scan.last_log_time, \
+                                      self.last_scan.last_log_frac_sec) #
+        if len(self.batch_items) > 0:
+            last_batch = self.batch_items[-1]
+        else:
+            last_batch = None
+        if isinstance(last_batch, Batch_Item):
+            assert isinstance(last_batch.batch_start_time, datetime)
+            if isinstance(last_batch.batch_end_time, datetime):
+                assert last_batch.batch_end_time > last_batch.batch_start_time
+                assert self.last_scan.last_batch_status != BATCH_STATUS[1] #Running
+                if last_scan_time == last_batch.batch_end_time:
+                    rslt_time = last_scan_time #将之前扫入的最后条log的时间作为返回结果（部分），供新的SOE扫描开始时间（调整前）
+                    rslt_order = TIME_STAMP_ORDER[0] #match
+                else:
+                    if last_scan_time < last_batch.batch_end_time:
+                        rslt_time = last_scan_time
+                        rslt_order = TIME_STAMP_ORDER[2] #last_log_early
+                    else:
+                        rslt_time = last_batch.batch_end_time
+                        rslt_order = TIME_STAMP_ORDER[1] #batch_item_early
+            else: #没有batch_end_time
+                assert self.last_scan.last_batch_status != BATCH_STATUS[2] #Completed
+                if last_scan_time == last_batch.batch_start_time:
+                    rslt_time = last_scan_time #将之前扫入的最后条log的时间作为返回结果（部分），供新的SOE扫描开始时间（调整前）
+                    rslt_order = TIME_STAMP_ORDER[0] #match
+                else:
+                    if last_scan_time < last_batch.batch_end_time:
+                        rslt_time = last_scan_time
+                        rslt_order = TIME_STAMP_ORDER[2] #last_log_early
+                    else:
+                        rslt_time = last_batch.batch_start_time
+                        rslt_order = TIME_STAMP_ORDER[1] #batch_item_early
+        else:
+            rslt_time = None
+            rslt_order = TIME_STAMP_ORDER[3] #no_log
+        result = (rslt_order, rslt_time)
+        log_args = [rslt_order, rslt_time, self.vessel_no]
+        add_log(40, "fn:valid_log_time return. '{0[2]}' rslt_order:'{0[0]}' rslt_time:'{0[1]}'", log_args)
+        if logable(40):
+            log_print("--------fn: valid_log_time() start--------")
+            try:
+                log_print("last_scan_time: {}".format(dt_to_string(last_scan_time)))
+                log_print("last_batch_start_time: {}".format(dt_to_string(last_batch.batch_start_time)))
+                log_print("last_batch_end_time: {}".format(dt_to_string(last_batch.batch_end_time)))
+            except:
+                add_log(30, "fn:valid_log_time(), exccept when print log")
+            log_print("--------fn: valid_log_time() end--------")
+        return result
+
+    def update_last_scan(self):
+        """update vessel.last_scan fields"""
+        if len(self.batch_items) > 0:
+            self.last_scan.last_batch_status = self.batch_items[-1].batch_status
+            if self.last_scan.last_batch_status != BATCH_STATUS[2]: #'Complete'
+                _last_log_time = self.batch_items[-1].batch_start_time
+            else:
+                _last_log_time = self.batch_items[-1].batch_end_time
+
+    def dump_vessel_last_scan(self):
+        """将vessel.last_scan结果导出文件
+        vessel_last_scan: vessel.last_scan"""
+        surfix = VESSEL_LAST_SCAN_SURFIX
+        if isinstance(self.last_scan, Vessel_Last_Scan):
+            _obj = self.last_scan
+            serializing(_obj, DEF_PACKED_PATH + self.vessel_no + surfix)
+        else:
+            log_args = [self.last_scan]
+            add_log(10, "fn:dump_vessel_last_scan. obj '{0[0]}' is not instance of Vessel.Last_Scan", log_args)
+
+    def load_vessel_last_scan(self, init = False):
+        """从文件或以默认初始值，加载前次扫描的Vessel_Last_Scan状态
+        -init = True 以默认初始值载入， False从文件载入"""
+        if init == False:   #从文件读入
+            surfix = VESSEL_LAST_SCAN_SURFIX
+            result = load(DEF_PACKED_PATH + self.vessel_no + surfix)
+        else:    #使用默认初始值加载
+            result = Vessel_Last_Scan()
+            result.last_batch_status = BATCH_STATUS[0]
+            #result.last_log_time_s = INIT_TIME_STRING
+            result.last_log_frac_sec = 0
+            _time = string_to_dt(INIT_TIME_STRING)
+            result.last_log_time = frac_to_msec(_time,result.last_log_frac_sec)
+            add_log(30, 'fn:load_vessel_last_scan(); load with initial setting')
+        add_log(40, "fn:load_vessel_last_scan() -return start---------------------")
+        if logable(40) and result:
+            #log_print("result.vessel_no: {}".format(result.vessel_no))
+            log_print("result.last_batch_status: {}".format(result.last_batch_status))
+            log_print("result.last_log_time: {}".format(result.last_log_time))
+            log_print("result.last_log_frac_sec: {}".format(result.last_log_frac_sec))
+        add_log(40, "fn:load_vessel_last_scan() -return end---------------------")
+        return result
+
+    def dump_vessel_batch_items(self):
+        """将该vessel的批次摘要导出到文件"""
+        surfix = VESSEL_BATCH_ITEMS_SURFIX
+        serializing(self.batch_items, DEF_PACKED_PATH + self.vessel_no + surfix)
+
+    def load_vessel_batch_items(self):
+        """从文件或以默认初始值，加载batch_item"""
+        surfix = VESSEL_BATCH_ITEMS_SURFIX
+        result = load(DEF_PACKED_PATH + self.vessel_no + surfix)
+        if not result:
+            result = []
+        return result
 
     def print_vessel_last_scan(self):
         log_print("[fn]Vessel.print_vessel_last_scan()------start------")
-        log_print("vessel_no: {}".format(self.last_scan.vessel_no))
+        log_print("vessel_no: {}".format(self.vessel_no))
         log_print("last_batch_status: {}".format(self.last_scan.last_batch_status))
         log_print("last_log_time: {}".format(self.last_scan.last_log_time))
         log_print("last_log_frac_sec: {}".format(self.last_scan.last_log_frac_sec))
@@ -505,9 +480,9 @@ class Vessel():
         log_print("   #: Vessel     Batch_ID         Status             Start                       End                    Duration        Operation")
         for batch in self.batch_items:
             i += 1
-            start_time = dt_f_to_string(batch.batch_start_time)
+            start_time = dt_f_to_string(utc_to_local(batch.batch_start_time))
             if isinstance(batch.batch_end_time,datetime):
-                end_time = dt_f_to_string(batch.batch_end_time)
+                end_time = dt_f_to_string(utc_to_local(batch.batch_end_time))
             else:
                 if batch.batch_status == BATCH_STATUS[1]: #'Running'
                     end_time = '--now--'
@@ -549,7 +524,7 @@ class Batch_Item():
         self.comment = ''
 
     def complete_batch_item(self):
-        """fill the fields when status changed to 'Completed'"""
+        """fill the fields of vessel.batch_items[item,...]"""
         def last_valid_value(batch_id_logs):
             """reverse order value_log validate.
             -return:
