@@ -125,56 +125,6 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             print("----------------------------------------")
         print("[fn] print_soe_db_profiles() end ================")
 
-    def multi_dbs_enquiry(self,vessel, start_time, server = 'localhost'):
-        """跨多个数据库文件查询Batch_Start
-        return: <list> <- <Batch_Start_Log>
-        - vessel: <Vessel>
-        - start_time: <datetime> in UTC e.g. '2018-08-18 02:46:51.32130000'
-        - server: <str>SOE host station"""
-        global ej_db_profile, soe_db_profiles
-        result = []
-        end_time = datetime.now()
-        if not isinstance(vessel,Vessel):
-            log_args = [vessel]
-            add_log(20,'multi_dbs_enquiry.vessel: {0[0]} invalid', log_args)
-            return
-        module = vessel.vessel_no + '-COMMON'
-        if start_time < ej_db_profile.db_start_time:
-            for db in soe_db_profiles:
-                if db.db_end_time < start_time:
-                    continue
-                else:
-                    if db.db_end_time > ej_db_profile.db_start_time:
-                        _db_end_time = ej_db_profile.db_start_time
-                        dv_soe = DV_SOE(server,db.db_name)
-                        _rslt = dv_soe.enquiry(dv_soe.sql_batch_start(module,start_time, _db_end_time))
-                        if len(_rslt) > 0:
-                            result.append(_rslt)
-                        dv_soe.close()
-                        dv_soe = None
-                        break
-                    else:
-                        _db_end_time = ej_db_profile.db_start_time
-                        dv_soe = DV_SOE(server,db.db_name)
-                        _rslt = dv_soe.enquiry(dv_soe.sql_batch_start(module,start_time, _db_end_time))
-                        if len(_rslt) > 0:
-                            result.append(_rslt)
-                        dv_soe.close()
-                        dv_soe = None
-                        continue
-        ej_soe = DV_SOE(server)
-        _rslt = ej_soe.enquiry(ej_soe.sql_batch_start(module,start_time))
-        if len(_rslt) > 0:
-            result.extend(_rslt)
-        ej_soe.close()
-        ej_soe = None
-        add_log(30,'<fn>multi_dbs_enquiry().return start=============')
-        if logable(30):
-            for i in result:
-                print(i)
-        add_log(30,'<fn>multi_dbs_enquiry().return end=============')
-        return result
-
     def tst_temp1(self):
         """temp to delete"""
         print("===============tst_temp1 strat==============")
@@ -245,11 +195,11 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             print("start_time was: {}".format(start_time))
             start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
         print("multi_dbs_enquiry().start_time:{}".format(start_time))
-        rslt_batch_start = main.multi_dbs_enquiry(v,start_time)
+        rslt_batch_start = v.multi_dbs_enquiry(start_time)
         #v.print_vessel_last_scan()
         #v.print_batch_items()
         print("********")
-        main.fill_batch_items(v,rslt_batch_start)
+        v.fill_batch_items(rslt_batch_start)
         v.print_batch_items()
 
         start_e = datetime.now()
@@ -269,16 +219,20 @@ class MainWindow(Ui_MW_BatchNueBee, QtWidgets.QMainWindow):
             print("start_time was: {}".format(start_time))
             start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
         print("multi_dbs_enquiry().start_time:{}".format(start_time))
-        rslt_batch_start = main.multi_dbs_enquiry(v,start_time)
+        rslt_batch_start = v.multi_dbs_enquiry(start_time)
         #v.print_vessel_last_scan()
         #v.print_batch_items()
         print("********")
         v.fill_batch_items(rslt_batch_start)
         #v.print_batch_items()
-        for item in v.batch_items:
-            item.complete_batch_item()
+        #for item in v.batch_items:
+        #    item.complete_batch_item()
         v.print_batch_items()
+        v.update_last_scan()
         v.print_vessel_last_scan()
+        v.dump_vessel_last_scan()
+        v.dump_vessel_batch_items()
+
         start_e = datetime.now()
         print(start_e - start_s)
         print("===============tst_temp4 end==============")
@@ -292,57 +246,96 @@ class Vessel():
     def __init__(self, vessel_number):
         self.vessel_no = vessel_number
         _load_rslt = self.load_vessel_last_scan()
-        if _load_rslt:
-            log_args = [_load_rslt]
-            add_log(30, "class:__init__() -self.last_scan: {0[0]} loaded", log_args)
+        if isinstance(_load_rslt,Vessel_Last_Scan):
+            self.last_scan = _load_rslt
+            log_args = [vessel_number]
+            add_log(30, '"{0[0]}".__init__() last_scan loaded from file', log_args)
         else:
-            _load_rslt = self.load_vessel_last_scan(init = True)
-            log_args = [_load_rslt]
-            add_log(20, "class:__init__() -self.last_scan: {0[0]} load fail; used default data", log_args)
-        self.last_scan = _load_rslt
+            self.last_scan = Vessel_Last_Scan()
+            self.last_scan.last_batch_status = BATCH_STATUS[0] #'Underfined'
+            self.last_scan.last_log_frac_sec = 0
+            self.last_scan.last_log_time = string_to_dt(INIT_TIME_STRING)
+            log_args = [vessel_number]
+            add_log(30, '"{0[0]}".__init__() last_scan created with default value', log_args)
         self.batch_items = self.load_vessel_batch_items()
 
-    def fill_batch_items(self,batch_start_list):
-            """fill vessel.batch_items"""
-            def _new_batch_item():
-                """instance new batch_item from Batch_Item. internal use only"""
-                item = Batch_Item()
-                item.batch_start_time = log_time
-                item.batch_status = BATCH_STATUS[1] #'Running'
-                item.vessel_no = self.vessel_no
-                self.batch_items.append(item)
+    def multi_dbs_enquiry(self, start_time, server = 'localhost'):
+        """跨多个数据库文件查询Batch_Start
+        return: <list> <- <Batch_Start_Log>
+        - start_time: <datetime> in UTC e.g. '2018-08-18 02:46:51.32130000'
+        - server: <str>SOE host station"""
+        global ej_db_profile, soe_db_profiles
+        result = []
+        end_time = datetime.now()
+        module = self.vessel_no + '-COMMON'
+        if start_time < ej_db_profile.db_start_time:
+            for db in soe_db_profiles:
+                if db.db_end_time < start_time:
+                    continue
+                else:
+                    if db.db_end_time > ej_db_profile.db_start_time:
+                        _db_end_time = ej_db_profile.db_start_time
+                        dv_soe = DV_SOE(server,db.db_name)
+                        _rslt = dv_soe.enquiry(dv_soe.sql_batch_start(module,start_time, _db_end_time))
+                        if len(_rslt) > 0:
+                            result.append(_rslt)
+                        dv_soe.close()
+                        dv_soe = None
+                        break
+                    else:
+                        _db_end_time = ej_db_profile.db_start_time
+                        dv_soe = DV_SOE(server,db.db_name)
+                        _rslt = dv_soe.enquiry(dv_soe.sql_batch_start(module,start_time, _db_end_time))
+                        if len(_rslt) > 0:
+                            result.append(_rslt)
+                        dv_soe.close()
+                        dv_soe = None
+                        continue
+        ej_soe = DV_SOE(server)
+        _rslt = ej_soe.enquiry(ej_soe.sql_batch_start(module,start_time))
+        if len(_rslt) > 0:
+            result.extend(_rslt)
+        ej_soe.close()
+        ej_soe = None
+        add_log(30,'<fn>multi_dbs_enquiry().return start=============')
+        if logable(30):
+            for i in result:
+                print(i)
+        add_log(30,'<fn>multi_dbs_enquiry().return end=============')
+        return result
 
-            for log in batch_start_list:
-                log_time = frac_to_msec(log[1],log[2]) #convert log time to datatime is msec
-                if len(self.batch_items) > 0:
-                    last_batch = self.batch_items[-1]
-                    if last_batch.batch_status == BATCH_STATUS[1]: #'Running'
-                        if log[0] == '0': #parameter of batch_start_time
-                            last_batch.batch_end_time = log_time
-                            last_batch.batch_status = BATCH_STATUS[2] #'Completed'
-                            last_batch.complete_batch_item()
-                        elif log[0] == '1':
-                            running_last = log_time - last_batch.batch_start_time
-                            if running_last > timedelta(days=RUNNING_EXPIRE_DAYS):
-                                last_batch.batch_status = BATCH_STATUS[0] #'underfined'
-                                last_batch.comment = "set to 'undefined' by system"
-                                _new_batch_item()
-                            else:
-                                log_args = [log]
-                                add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
-                        else:
-                            log_args = [log[0]]
-                            add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
-                    else: # not 'Running'
-                        if log[0] == '1': #parameter of batch_start_time
+    def fill_batch_items(self,batch_start_list):
+        """fill vessel.batch_items"""
+        def _new_batch_item():
+            """instance new batch_item from Batch_Item. internal use only"""
+            item = Batch_Item()
+            item.batch_start_time = log_time
+            item.batch_status = BATCH_STATUS[1] #'Running'
+            item.vessel_no = self.vessel_no
+            self.batch_items.append(item)
+
+        for log in batch_start_list:
+            log_time = frac_to_msec(log[1],log[2]) #convert log time to datatime is msec
+            if len(self.batch_items) > 0:
+                last_batch = self.batch_items[-1]
+                if last_batch.batch_status == BATCH_STATUS[1]: #'Running'
+                    if log[0] == '0': #parameter of batch_start_time
+                        last_batch.batch_end_time = log_time
+                        last_batch.batch_status = BATCH_STATUS[2] #'Completed'
+                        last_batch.complete_batch_item()
+                    elif log[0] == '1':
+                        running_last = log_time - last_batch.batch_start_time
+                        if running_last > timedelta(days=RUNNING_EXPIRE_DAYS):
+                            last_batch.batch_status = BATCH_STATUS[0] #'underfined'
+                            last_batch.comment = "set to 'undefined' by system"
                             _new_batch_item()
-                        elif log[0] == '0':
+                        else:
                             log_args = [log]
                             add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
-                        else:
-                            log_args = [log[0]]
-                            add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
-                else:
+                    else:
+                        log_args = [log[0]]
+                        add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+                else: # not 'Running'
                     if log[0] == '1': #parameter of batch_start_time
                         _new_batch_item()
                     elif log[0] == '0':
@@ -351,6 +344,18 @@ class Vessel():
                     else:
                         log_args = [log[0]]
                         add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+            else:
+                if log[0] == '1': #parameter of batch_start_time
+                    _new_batch_item()
+                elif log[0] == '0':
+                    log_args = [log]
+                    add_log(20, '[fn]fill_batch_items(); log discarded due to status conflicted with previous one. log:"{0[0]}"', log_args)
+                else:
+                    log_args = [log[0]]
+                    add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
+
+        if self.batch_items[-1].batch_status == BATCH_STATUS[1]: #'Running'
+            self.batch_items[-1].complete_batch_item()
 
     def return_scan_time(self):
         """验证vessel中的记录的时间逻辑是否合理，返回soe扫描的起始时间
@@ -360,8 +365,7 @@ class Vessel():
         - ('batch_item_early', <datetime>batch_end_time/batch_start_time
         - ('no_log', None)"""
         assert isinstance(self.last_scan, Vessel_Last_Scan)
-        last_scan_time = frac_to_msec(self.last_scan.last_log_time, \
-                                      self.last_scan.last_log_frac_sec) #
+        last_scan_time = frac_to_msec(self.last_scan.last_log_time, self.last_scan.last_log_frac_sec) #
         if len(self.batch_items) > 0:
             last_batch = self.batch_items[-1]
         else:
@@ -418,6 +422,9 @@ class Vessel():
                 _last_log_time = self.batch_items[-1].batch_start_time
             else:
                 _last_log_time = self.batch_items[-1].batch_end_time
+            self.last_scan.last_log_time,self.last_scan.last_log_frac_sec = dtmsec_to_dt_and_frac(_last_log_time)
+        log_args = [self.last_scan.last_batch_status,self.last_scan.last_log_time,self.last_scan.last_log_frac_sec]
+        add_log(30,'[fn]update_last_scan:.batch_statuse="{0[0]}", .last_log_time="{0[1]}", .last_log_frac_sec="{0[2]}"', log_args)
 
     def dump_vessel_last_scan(self):
         """将vessel.last_scan结果导出文件
@@ -430,20 +437,13 @@ class Vessel():
             log_args = [self.last_scan]
             add_log(10, "fn:dump_vessel_last_scan. obj '{0[0]}' is not instance of Vessel.Last_Scan", log_args)
 
-    def load_vessel_last_scan(self, init = False):
+    def load_vessel_last_scan(self):
         """从文件或以默认初始值，加载前次扫描的Vessel_Last_Scan状态
         -init = True 以默认初始值载入， False从文件载入"""
-        if init == False:   #从文件读入
-            surfix = VESSEL_LAST_SCAN_SURFIX
-            result = load(DEF_PACKED_PATH + self.vessel_no + surfix)
-        else:    #使用默认初始值加载
-            result = Vessel_Last_Scan()
-            result.last_batch_status = BATCH_STATUS[0]
-            #result.last_log_time_s = INIT_TIME_STRING
-            result.last_log_frac_sec = 0
-            _time = string_to_dt(INIT_TIME_STRING)
-            result.last_log_time = frac_to_msec(_time,result.last_log_frac_sec)
-            add_log(30, 'fn:load_vessel_last_scan(); load with initial setting')
+
+        surfix = VESSEL_LAST_SCAN_SURFIX
+        result = load(DEF_PACKED_PATH + self.vessel_no + surfix)
+
         add_log(40, "fn:load_vessel_last_scan() -return start---------------------")
         if logable(40) and result:
             #log_print("result.vessel_no: {}".format(result.vessel_no))
@@ -529,19 +529,19 @@ class Batch_Item():
             """reverse order value_log validate.
             -return:
             -batch_id_logs: <[value_log,...]>"""
-            result = '--none--'
             for log in reversed(batch_id_logs):
                 if valid_batch_id(log.value) != '--none--':
                     result = log.value.strip()
                     return result
-            return result
+            return '--none--'
 
         #complete duration
         if isinstance(self.batch_end_time,datetime):
             self.duration = self.batch_end_time - self.batch_start_time
+            dt = self.batch_end_time
         else:
             self.duration = datetime.utcnow() - self.batch_start_time #handle running batch
-        dt = self.batch_end_time
+            dt = datetime.utcnow()
 
         #complete batch_id
         item_id = self.vessel_no + r"-COMMON/BATCH_ID.CV"
