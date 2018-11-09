@@ -184,25 +184,8 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
     def tst_temp3(self):
         """temp to delete"""
         print("===============tst_temp3 strat==============")
-        start_s = datetime.now()
-        main.model_init()
-        main.soe_dbs_profile()
-        main.print_soe_db_profiles() #opitional
-        v=vessels["V1"]
-        start_time = v.return_scan_time()[1]
-        if not isinstance(start_time,datetime):
-            print("start_time was: {}".format(start_time))
-            start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
-        print("multi_dbs_enquiry().start_time:{}".format(start_time))
-        rslt_batch_start = v.multi_dbs_enquiry(start_time)
-        #v.print_vessel_last_scan()
-        #v.print_batch_items()
-        print("********")
-        v.fill_batch_items(rslt_batch_start)
-        v.print_batch_items()
-
-        start_e = datetime.now()
-        print(start_e - start_s)
+        xml_path = r".\packed\temp\_raw_1pt.tmp"
+        execute_xml(xml_path)
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
@@ -529,7 +512,7 @@ class Batch_Item():
             -return:
             -batch_id_logs: <[value_log,...]>"""
             for log in reversed(batch_id_logs):
-                if valid_batch_id(log.value) != '--none--':
+                if valid_batch_id(log) != '--none--':
                     result = log.value.strip()
                     return result
             return '--none--'
@@ -547,11 +530,15 @@ class Batch_Item():
         element_tree = create_raw_1pt_xml(dt,item_id)
         xml_path = XML_CONSTANT['raw_1pt']['xml_path']
         generate_xml(element_tree,xml_path)
+        #log_args = [xml_path]
+        #add_log(40, 'fn:complete_batch_item(): 1pt_xml xml_path="{0[0]}"', log_args)
         element_tree = None
         execute_xml(xml_path)
         result_path = XML_CONSTANT['raw_1pt']['result_path']
+        #log_args = [result_path]
+        #add_log(40, 'fn:complete_batch_item(): 1pt_xml result_path="{0[0]}"', log_args)
         batch_id = read_1pt(result_path)
-        if valid_batch_id(batch_id.value) != '--none--':
+        if valid_batch_id(batch_id) != '--none--':
             self.batch_id = batch_id.value.strip()
         else:
             start_time = self.batch_start_time
@@ -565,6 +552,7 @@ class Batch_Item():
             batch_id_logs = read_mpt(result_path)
             self.batch_id = last_valid_value(batch_id_logs)
 
+
         #complete operation
         item_id = self.vessel_no + r"-COMMON/OPERATION.CV"
         element_tree = create_raw_1pt_xml(dt,item_id)
@@ -574,7 +562,7 @@ class Batch_Item():
         execute_xml(xml_path)
         result_path = XML_CONSTANT['raw_1pt']['result_path']
         operation = read_1pt(result_path)
-        if valid_batch_id(operation.value) != '--none--':
+        if valid_batch_id(operation) != '--none--':
             self.operation = operation.value.strip()
         else:
             start_time = self.batch_start_time
