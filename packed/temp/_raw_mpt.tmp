@@ -14,8 +14,8 @@
             <Interface>IOPCHDA_SyncRead</Interface>
             <Method>ReadRaw</Method>
             <ItemID>V1-COMMON/OPERATION.CV</ItemID>
-            <StartTime>2018-11-05 12:54:49</StartTime>
-            <EndTime>2018-11-05 16:10:51</EndTime>
+            <StartTime>2018-11-03 11:23:04</StartTime>
+            <EndTime>2018-11-09 03:08:07</EndTime>
             <NumValues>0</NumValues>
             <Bounds>TRUE</Bounds>
           </Step>
