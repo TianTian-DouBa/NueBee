@@ -36,7 +36,9 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00", \
                                                 "%Y-%m-%d %H:%M:%S") #默认开始扫描时间
         #额外界面设置
-
+        self.tableWidget.setColumnCount(9)
+        _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
+        self.tableWidget.setHorizontalHeaderLabels(_h_header)
         #在此，可添加自定义的信号绑定
         self.pushButton_tst1.clicked.connect(self.tst_temp1) #test
         self.pushButton_tst2.clicked.connect(self.tst_temp2) #test
@@ -124,68 +126,87 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             print("----------------------------------------")
         print("[fn] print_soe_db_profiles() end ================")
 
+    def clear_batches_table_contents(self):
+        """clear the contents of batches table"""
+        self.tableWidget.setRowCount(0)
+
+    def fill_batches_table(self,vessel):
+        """fill the table with batch_items
+        -row_to_continue:<int>starting row to fill, begin with 0
+        -vessel:<Vessel>"""
+        _row = self.tableWidget.rowCount()
+        self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(vessel.batch_items))
+        for batch in vessel.batch_items:
+            _v_no = QtWidgets.QTableWidgetItem(batch.vessel_no,0)
+            _v_b_id = QtWidgets.QTableWidgetItem(batch.batch_id,0)
+            _v_status = QtWidgets.QTableWidgetItem(batch.batch_status,0)
+            _v_start = QtWidgets.QTableWidgetItem(batch.rtn_start_time_local_str(),0)
+            _v_end = QtWidgets.QTableWidgetItem(batch.rtn_end_time_local_str(),0)
+            _v_duration =  QtWidgets.QTableWidgetItem(batch.rtn_duration_str(),0)
+            _v_operation = QtWidgets.QTableWidgetItem(batch.operation,0)
+            _v_record_time = QtWidgets.QTableWidgetItem(batch.rtn_record_time_str(),0)
+            _v_comment = QtWidgets.QTableWidgetItem(batch.comment,0)
+            self.tableWidget.setItem(_row,0,_v_no)
+            self.tableWidget.setItem(_row,1,_v_b_id)
+            self.tableWidget.setItem(_row,2,_v_status)
+            self.tableWidget.setItem(_row,3,_v_start)
+            self.tableWidget.setItem(_row,4,_v_end)
+            self.tableWidget.setItem(_row,5,_v_duration)
+            self.tableWidget.setItem(_row,6,_v_operation)
+            self.tableWidget.setItem(_row,7,_v_record_time)
+            self.tableWidget.setItem(_row,8,_v_comment)
+            _row += 1
+
+
     def tst_temp1(self):
-        """temp to delete"""
+        """QTableWidget test"""
         print("===============tst_temp1 strat==============")
         main.model_init()
-        for i in vessels.values():
-            print('--------------------------------------')
-            print(i.vessel_no)
-            print(i.last_scan.vessel_no)
-            print(i.last_scan.last_batch_status)
-            print(i.last_scan.last_log_time)
-            print(type(i.last_scan.last_log_time))
-            print(i.last_scan.last_log_frac_sec)
-            print(i.batch_items)
+        v = vessels["V1"]
+        _row = self.tableWidget.rowCount()
+        self.tableWidget.setColumnCount(9)
+        self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(v.batch_items))
+        _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
+        self.tableWidget.setHorizontalHeaderLabels(_h_header)
+        for batch in v.batch_items:
+            _v_no = QtWidgets.QTableWidgetItem(batch.vessel_no,0)
+            _v_b_id = QtWidgets.QTableWidgetItem(batch.batch_id,0)
+            _v_status = QtWidgets.QTableWidgetItem(batch.batch_status,0)
+            _v_start = QtWidgets.QTableWidgetItem(batch.rtn_start_time_local_str(),0)
+            _v_end = QtWidgets.QTableWidgetItem(batch.rtn_end_time_local_str(),0)
+            _v_duration =  QtWidgets.QTableWidgetItem(batch.rtn_duration_str(),0)
+            _v_operation = QtWidgets.QTableWidgetItem(batch.operation,0)
+            _v_record_time = QtWidgets.QTableWidgetItem(batch.rtn_record_time_str(),0)
+            _v_comment = QtWidgets.QTableWidgetItem(batch.comment,0)
+            self.tableWidget.setItem(_row,0,_v_no)
+            self.tableWidget.setItem(_row,1,_v_b_id)
+            self.tableWidget.setItem(_row,2,_v_status)
+            self.tableWidget.setItem(_row,3,_v_start)
+            self.tableWidget.setItem(_row,4,_v_end)
+            self.tableWidget.setItem(_row,5,_v_duration)
+            self.tableWidget.setItem(_row,6,_v_operation)
+            self.tableWidget.setItem(_row,7,_v_record_time)
+            self.tableWidget.setItem(_row,8,_v_comment)
+            _row += 1
+
         print("===============tst_temp1 end==============")
 
     def tst_temp2(self):
-        """create XML and execute"""
+        """clear table"""
         print("===============tst_temp2 strat==============")
-        #xml_path = r'.\packed\temp\raw_1pt.xml'
-        #execute_xml(xml_path)
-        #Popen(["notepad", r".\packed\temp\raw_1pt.csv"])
-        dt = string_to_dt("2018-10-22 13:34:23")
-        item_id = r"V1-COMMON/BATCH_ID.CV"
-        element_tree = create_raw_1pt_xml(dt,item_id)
-        xml_path = r'.\packed\temp\_raw_1pt.tmp'
-        generate_xml(element_tree,xml_path)
-        #with open(r'.\packed\temp\_raw_1pt.tmp','r') as xml:
-            #valid_xml(r'.\packed\temp\DvOpcHda.xsd',xml)
-        element_tree = None
-        execute_xml(xml_path)
-        result_path = r".\packed\temp\raw_1pt_opt.xml"
-        read_1pt(result_path)
-
-        element_tree = create_raw_1pt_xml(dt,item_id)
-        xml_path = r'.\packed\temp\_raw_1pt.tmp'
-        generate_xml(element_tree,xml_path)
-        with open(r'.\packed\temp\_raw_1pt.tmp','r') as xml:
-            valid_xml(r'.\packed\temp\DvOpcHda.xsd',xml)
-        element_tree = None
-        execute_xml(xml_path)
-        result_path = r".\packed\temp\raw_1pt_opt.xml"
-        read_raw_1pt(result_path)
-
-        start_time = string_to_dt("2018-10-08 13:34:23")
-        end_time = string_to_dt("2018-10-10 13:34:23")
-        element_tree = create_raw_mpt_xml(start_time,end_time,item_id)
-        xml_path = r'.\packed\temp\_raw_mpt.tmp'
-        generate_xml(element_tree,xml_path)
-        with open(r'.\packed\temp\_raw_mpt.tmp','r') as xml:
-            valid_xml(r'.\packed\temp\DvOpcHda.xsd',xml)
-        element_tree = None
-        execute_xml(xml_path)
-        result_path = r".\packed\temp\raw_mpt_opt.xml"
-        read_mpt(result_path)
-        #Popen(["notepad", r".\packed\temp\raw_mpt_opt.xml"])
+        main.clear_batches_table_contents()
         print("===============tst_temp2 end==============")
 
     def tst_temp3(self):
-        """temp to delete"""
+        """2nd fill batches table"""
         print("===============tst_temp3 strat==============")
-        xml_path = r".\packed\temp\_raw_1pt.tmp"
-        execute_xml(xml_path)
+        main.model_init()
+        main.clear_batches_table_contents()
+        for v in vessels.values():
+            main.fill_batches_table(v)
+            #v.dump_vessel_last_scan()
+            #v.dump_vessel_batch_items()
+            v.print_vessel_last_scan()
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
@@ -195,25 +216,25 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         main.model_init()
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
-        v=vessels["V1"]
-        start_time = v.return_scan_time()[1]
-        if not isinstance(start_time,datetime):
-            print("start_time was: {}".format(start_time))
-            start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
-        print("multi_dbs_enquiry().start_time:{}".format(start_time))
-        rslt_batch_start = v.multi_dbs_enquiry(start_time)
-        #v.print_vessel_last_scan()
-        #v.print_batch_items()
-        print("********")
-        v.fill_batch_items(rslt_batch_start)
-        #v.print_batch_items()
-        #for item in v.batch_items:
-        #    item.complete_batch_item()
-        v.print_batch_items()
-        v.update_last_scan()
-        v.print_vessel_last_scan()
-        v.dump_vessel_last_scan()
-        v.dump_vessel_batch_items()
+        for v in vessels.values():
+            start_time = v.return_scan_time()[1]
+            if not isinstance(start_time,datetime):
+                print("start_time was: {}".format(start_time))
+                start_time = datetime.strptime ("2014-08-18 02:47:25.8160", "%Y-%m-%d %H:%M:%S.%f")
+            print("multi_dbs_enquiry().start_time:{}".format(start_time))
+            rslt_batch_start = v.multi_dbs_enquiry(start_time)
+            #v.print_vessel_last_scan()
+            #v.print_batch_items()
+            print("********")
+            v.fill_batch_items(rslt_batch_start)
+            #v.print_batch_items()
+            #for item in v.batch_items:
+            #    item.complete_batch_item()
+            v.print_batch_items()
+            v.update_last_scan()
+            v.print_vessel_last_scan()
+            v.dump_vessel_last_scan()
+            v.dump_vessel_batch_items()
 
         start_e = datetime.now()
         print(start_e - start_s)
@@ -234,7 +255,7 @@ class Vessel():
             add_log(30, '"{0[0]}".__init__() last_scan loaded from file', log_args)
         else:
             self.last_scan = Vessel_Last_Scan()
-            self.last_scan.last_batch_status = BATCH_STATUS[0] #'Underfined'
+            self.last_scan.last_batch_status = BATCH_STATUS[0] #'Undefined'
             self.last_scan.last_log_frac_sec = 0
             self.last_scan.last_log_time = string_to_dt(INIT_TIME_STRING)
             log_args = [vessel_number]
@@ -335,9 +356,11 @@ class Vessel():
                 else:
                     log_args = [log[0]]
                     add_log(10,'[fn]fill_batch_items() log[0]:"{0[0]}" not in "0" or "1"',log_args)
-
-        if self.batch_items[-1].batch_status == BATCH_STATUS[1]: #'Running'
-            self.batch_items[-1].complete_batch_item()
+        try:
+            if self.batch_items[-1].batch_status == BATCH_STATUS[1]: #'Running'
+                self.batch_items[-1].complete_batch_item()
+        except IndexError:
+            add_log(40,'fn:fill_batch_items() batch_items[-1] IndexError')
 
     def return_scan_time(self):
         """验证vessel中的记录的时间逻辑是否合理，返回soe扫描的起始时间
@@ -398,6 +421,7 @@ class Vessel():
 
     def update_last_scan(self):
         """update vessel.last_scan fields"""
+        self.last_scan.vessel_no = self.vessel_no
         if len(self.batch_items) > 0:
             self.last_scan.last_batch_status = self.batch_items[-1].batch_status
             if self.last_scan.last_batch_status != BATCH_STATUS[2]: #'Complete'
@@ -462,15 +486,9 @@ class Vessel():
         log_print("   #: Vessel     Batch_ID         Status             Start                       End                    Duration        Operation")
         for batch in self.batch_items:
             i += 1
-            start_time = dt_f_to_string(utc_to_local(batch.batch_start_time))
-            if isinstance(batch.batch_end_time,datetime):
-                end_time = dt_f_to_string(utc_to_local(batch.batch_end_time))
-            else:
-                if batch.batch_status == BATCH_STATUS[1]: #'Running'
-                    end_time = '--now--'
-                else:
-                    end_time = '--unkonwn--'
-            duration = str(batch.duration)[:-7]
+            start_time = batch.rtn_start_time_local_str()
+            end_time = batch.rtn_end_time_local_str()
+            duration = batch.rtn_duration_str()
             #log_print("	{:0>4d}:{:x<8d}  {:x<10d}  {}".format(i,batch.vessel_no,batch.batch_status,start_time))
             log_print("{:>4d}: {:<10} {:<16} {:<10} {:<24}    {:<24} {:>16}      {:<16} ".format(i,batch.vessel_no,batch.batch_id,batch.batch_status,start_time,end_time,duration,batch.operation))
         log_print("[fn]Vessel.print_batch_items()------end------")
@@ -487,9 +505,9 @@ class SOE_Scan_Rslt():
 class Vessel_Last_Scan():
     """扫描后特定设备的状态"""
     def __init__(self):
-        self.vessel_no = None
+        #self.vessel_no = None
         self.last_batch_status = BATCH_STATUS[0]
-        self.last_log_time_s = None #过滤出的最后一条SOE的时间UTC in string
+        #self.last_log_time_s = None #过滤出的最后一条SOE的时间UTC in string
         self.last_log_frac_sec = None #过滤出的最后一条SOE的frac_sec in int
         self.last_log_time = None #过滤出的最后一条SOE的时间UTC in <datetime>
 
@@ -497,12 +515,13 @@ class Batch_Item():
     """一个批次的记录概要"""
     def __init__(self):
         self.vessel_no = None
-        self.batch_start_time = None #UTC in datetime
-        self.batch_end_time = None #UTC in datetime
-        self.duration = None
+        self.batch_start_time = None #<datetime UTC>
+        self.batch_end_time = None #<datetime UTC>
+        self.duration = None #<timedelta>
         self.batch_id = None
         self.operation = ''
         self.batch_status = BATCH_STATUS[0]
+        self.record_time = None #<datetime UTC>
         self.comment = ''
 
     def complete_batch_item(self):
@@ -575,6 +594,41 @@ class Batch_Item():
             result_path = XML_CONSTANT['raw_mpt']['result_path']
             operation_logs = read_mpt(result_path)
             self.operation = last_valid_value(operation_logs)
+
+        #complete record_time
+        self.record_time = datetime.utcnow()
+
+    def rtn_start_time_local_str(self):
+        """return batch_start_time to string with local time zone
+        -return:<str> e.g. '2018-11-09 17:34:45.2435'
+        """
+        result = dt_f_to_string(utc_to_local(self.batch_start_time))
+        return result
+
+    def rtn_end_time_local_str(self):
+        """return batch_end_time to string with local time zone
+        -return:<str> e.g. '2018-11-09 17:34:45.2435' '--now--' or '--unknown--'
+        """
+        if isinstance(self.batch_end_time,datetime):
+            end_time = dt_f_to_string(utc_to_local(self.batch_end_time))
+        else:
+            if self.batch_status == BATCH_STATUS[1]: #'Running'
+                end_time = '--now--'
+            else:
+                end_time = '--unkonwn--'
+        return end_time
+
+    def rtn_duration_str(self):
+        """return duration
+        -return:<str> 2 days, 17:33:08"""
+        result = str(self.duration)[:-7]
+        return result
+
+    def rtn_record_time_str(self):
+        """return record time in string
+        -return:<str>'2018-11-09 17:34:45.2435'"""
+        result = dt_f_to_string(utc_to_local(self.record_time))
+        return result
 
     def print_batch_item(self):
         log_print("[fn]Batch_Item.print_batch_item():------start------")
