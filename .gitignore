@@ -3,3 +3,5 @@ packed/*.dtp
 packed/temp/*.tmp
 packed/temp/*.txt
 packed/temp/*.xml
+BatchNueBee_ui.py
+BatchNueBee_ui_script.py
