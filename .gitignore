@@ -1,3 +1,4 @@
+__pycache__
 packed/*.dtp
 packed/temp/*.tmp
 packed/temp/*.txt
