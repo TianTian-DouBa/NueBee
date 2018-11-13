@@ -1,0 +1,4 @@
+packed/*.dtp
+packed/temp/*.tmp
+packed/temp/*.txt
+packed/temp/*.xml
