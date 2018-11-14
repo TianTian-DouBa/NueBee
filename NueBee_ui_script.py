@@ -1,6 +1,7 @@
 from NueBee_ui import Ui_MainWindow
 from PyQt5 import QtWidgets
 import sys
+import threading
 from datetime import datetime, timedelta
 from subprocess import Popen #debug
 from XF_common.XF_UTC_LOCAL import *
@@ -10,6 +11,7 @@ from XF_common.XF_LOG_MANAGE import add_log, logable, log_print
 from XF_common.XF_PATH import list_file_names
 from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_1pt,read_mpt,XML_CONSTANT
 from XF_common.XF_DV_HIST import execute_xml, Value_Log, valid_batch_id #debug
+from XF_common.XF_CHS import *
 
 BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
@@ -33,8 +35,12 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         self.setupUi(self)
 
         #初始化参数
-        self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00", \
-                                                "%Y-%m-%d %H:%M:%S") #默认开始扫描时间
+        self.model_init()
+        self.soe_dbs_profile()
+        if logable(40):
+            self.print_soe_db_profiles()
+        #self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00","%Y-%m-%d %H:%M:%S") #默认开始扫描时间
+
         #额外界面设置
         self.tableWidget.setColumnCount(9)
         _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
@@ -44,6 +50,16 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         self.pushButton_tst2.clicked.connect(self.tst_temp2) #test
         self.pushButton_tst3.clicked.connect(self.tst_temp3) #test
         self.pushButton_tst4.clicked.connect(self.tst_temp4) #test
+        self.pushButton_tst5.clicked.connect(self.tst_temp5) #test
+        self.pushButton_tst6.clicked.connect(self.tst_temp6) #test
+
+        #MainWindow加载后执行的内容
+        t = threading.Thread(target=self.update_batches_table, name="B_Table_Update")
+        t.start()
+
+    def on_exit(self):
+        """放程序退出前的必要动作"""
+        pass
 
     def model_init(self):
         """从文件读入批次列表和前次扫描信息，初始化vessels"""
@@ -114,28 +130,29 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
     def print_soe_db_profiles(self):
         """显示soe_db_profiles的内容"""
         global soe_db_profiles, ej_db_profile
-        print("[fn] print_soe_db_profiles() start ================")
-        print(".db_name = {}".format(ej_db_profile.db_name))
-        print(".db_start_time = {}".format(ej_db_profile.db_start_time))
-        print(".db_end_time = {}".format(ej_db_profile.db_end_time))
-        print("----------------------------------------")
+        log_print("[fn] print_soe_db_profiles() start ================")
+        log_print(".db_name = {}".format(ej_db_profile.db_name))
+        log_print(".db_start_time = {}".format(ej_db_profile.db_start_time))
+        log_print(".db_end_time = {}".format(ej_db_profile.db_end_time))
+        log_print("----------------------------------------")
         for i in soe_db_profiles:
-            print(".db_name = {}".format(i.db_name))
-            print(".db_start_time = {}".format(i.db_start_time))
-            print(".db_end_time = {}".format(i.db_end_time))
-            print("----------------------------------------")
-        print("[fn] print_soe_db_profiles() end ================")
+            log_print(".db_name = {}".format(i.db_name))
+            log_print(".db_start_time = {}".format(i.db_start_time))
+            log_print(".db_end_time = {}".format(i.db_end_time))
+            log_print("----------------------------------------")
+        log_print("[fn] print_soe_db_profiles() end ================")
 
     def clear_batches_table_contents(self):
         """clear the contents of batches table"""
         self.tableWidget.setRowCount(0)
 
-    def fill_batches_table(self,vessel):
+    def fill_vessel_batches_table(self,vessel):
         """fill the table with batch_items
         -row_to_continue:<int>starting row to fill, begin with 0
         -vessel:<Vessel>"""
         _row = self.tableWidget.rowCount()
         self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(vessel.batch_items))
+        self.tableWidget.setSortingEnabled(False) #workaround for sorting bug
         for batch in vessel.batch_items:
             _v_no = QtWidgets.QTableWidgetItem(batch.vessel_no,0)
             _v_b_id = QtWidgets.QTableWidgetItem(batch.batch_id,0)
@@ -156,7 +173,27 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             self.tableWidget.setItem(_row,7,_v_record_time)
             self.tableWidget.setItem(_row,8,_v_comment)
             _row += 1
+        self.tableWidget.setSortingEnabled(True) #workaround for sorting bug
 
+    def update_batches_table(self):
+        """update batches table"""
+        self.clear_batches_table_contents()
+        for v in vessels.values():
+            start_time = v.return_scan_time()[1]
+            if not isinstance(start_time,datetime):
+                start_time = datetime.strptime(INIT_TIME_STRING,"%Y-%m-%d %H:%M:%S")
+                log_args = [start_time]
+                add_log(30, 'fn:update_batches_table(). Start time to scan batch not detected, use defalult Init Time "{0[0]}"', log_args)
+            log_args = [start_time]
+            add_log(40, 'fn:update_batches_table(). multi_dbs_enquiry.start_time: "{0[0]}"', log_args)
+            rslt_batch_start = v.multi_dbs_enquiry(start_time)
+            log_args = [rslt_batch_start]
+            add_log(40, 'fn:update_batches_table(). fill_batch_items: "{0[0]}"', log_args)
+            v.fill_batch_items(rslt_batch_start)
+            v.update_last_scan()
+            v.dump_vessel_last_scan()
+            v.dump_vessel_batch_items()
+            self.fill_vessel_batches_table(v)
 
     def tst_temp1(self):
         """QTableWidget test"""
@@ -192,9 +229,10 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp1 end==============")
 
     def tst_temp2(self):
-        """clear table"""
+        """refresh button"""
         print("===============tst_temp2 strat==============")
-        main.clear_batches_table_contents()
+        t = threading.Thread(target=self.update_batches_table, name="B_Table_Update")
+        t.start()
         print("===============tst_temp2 end==============")
 
     def tst_temp3(self):
@@ -213,6 +251,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         """main test, [fn]complete_batch_item"""
         print("===============tst_temp4 strat==============")
         start_s = datetime.now()
+
         main.model_init()
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
@@ -236,13 +275,27 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             v.dump_vessel_last_scan()
             v.dump_vessel_batch_items()
 
-        start_e = datetime.now()
-        print(start_e - start_s)
+        end_s = datetime.now()
+        exec_time = end_s - start_s
+        print("execution time = {}".format(exec_time))
         print("===============tst_temp4 end==============")
 
-    def on_exit(self):
-        """放程序退出前的必要动作"""
-        pass
+    def tst_temp5(self):
+        """toggle set"""
+        print("===============tst_temp5 strat==============")
+        if self.tableWidget.isSortingEnabled():
+            self.tableWidget.setSortingEnabled(False)
+            add_log(30,'tableWidget.setSortingEnabled=True')
+        else:
+            self.tableWidget.setSortingEnabled(True)
+            add_log(30,'tableWidget.setSortingEnabled=False')
+        print("===============tst_temp5 end==============")
+
+    def tst_temp6(self):
+        """clear table"""
+        print("===============tst_temp6 strat==============")
+        _run_chs()
+        print("===============tst_temp6 end==============")
 
 class Vessel():
     """Vessel维度的状态"""
