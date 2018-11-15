@@ -37,11 +37,10 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         #初始化参数
         self.model_init()
         self.soe_dbs_profile()
-        if logable(40):
-            self.print_soe_db_profiles()
         #self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00","%Y-%m-%d %H:%M:%S") #默认开始扫描时间
 
         #额外界面设置
+        self.tableWidget.setSelectionBehavior(1) #selectRows
         self.tableWidget.setColumnCount(9)
         _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
         self.tableWidget.setHorizontalHeaderLabels(_h_header)
@@ -54,6 +53,12 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         self.pushButton_tst6.clicked.connect(self.tst_temp6) #test
 
         #MainWindow加载后执行的内容
+        if logable(40):
+            self.print_soe_db_profiles()
+        if not ej_db_profile.valid_db_profile():
+            add_log(10, 'fn:MainWindow.__init__(). ej db is not available')
+            print("to complete here:0001")
+            return
         t = threading.Thread(target=self.update_batches_table, name="B_Table_Update")
         t.start()
 
@@ -196,35 +201,24 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             self.fill_vessel_batches_table(v)
 
     def tst_temp1(self):
-        """QTableWidget test"""
+        """call PHV"""
         print("===============tst_temp1 strat==============")
-        main.model_init()
-        v = vessels["V1"]
-        _row = self.tableWidget.rowCount()
-        self.tableWidget.setColumnCount(9)
-        self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(v.batch_items))
-        _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
-        self.tableWidget.setHorizontalHeaderLabels(_h_header)
-        for batch in v.batch_items:
-            _v_no = QtWidgets.QTableWidgetItem(batch.vessel_no,0)
-            _v_b_id = QtWidgets.QTableWidgetItem(batch.batch_id,0)
-            _v_status = QtWidgets.QTableWidgetItem(batch.batch_status,0)
-            _v_start = QtWidgets.QTableWidgetItem(batch.rtn_start_time_local_str(),0)
-            _v_end = QtWidgets.QTableWidgetItem(batch.rtn_end_time_local_str(),0)
-            _v_duration =  QtWidgets.QTableWidgetItem(batch.rtn_duration_str(),0)
-            _v_operation = QtWidgets.QTableWidgetItem(batch.operation,0)
-            _v_record_time = QtWidgets.QTableWidgetItem(batch.rtn_record_time_str(),0)
-            _v_comment = QtWidgets.QTableWidgetItem(batch.comment,0)
-            self.tableWidget.setItem(_row,0,_v_no)
-            self.tableWidget.setItem(_row,1,_v_b_id)
-            self.tableWidget.setItem(_row,2,_v_status)
-            self.tableWidget.setItem(_row,3,_v_start)
-            self.tableWidget.setItem(_row,4,_v_end)
-            self.tableWidget.setItem(_row,5,_v_duration)
-            self.tableWidget.setItem(_row,6,_v_operation)
-            self.tableWidget.setItem(_row,7,_v_record_time)
-            self.tableWidget.setItem(_row,8,_v_comment)
-            _row += 1
+        _row = self.tableWidget.currentRow()
+        #print("current row:{}".format(_row))
+        if _row == -1:
+            return
+        vessel_no = self.tableWidget.item(_row,0).text()
+        start_s = '"' + self.tableWidget.item(_row,3).text()[:-5] + '"'
+        _end_s = self.tableWidget.item(_row,4).text()
+        if _end_s == "--now--":
+            end_s = '"' + dt_to_string(datetime.now()) + '"'
+        else:
+            end_s = '"' + _end_s[:-5] + '"'
+        print(vessel_no, start_s,end_s)
+        print('1:',end_s)
+        trends_s = r'(V2-COMMON/BATCH_START.CV, , , , , ,V2-COMMON/BATCH_ID.CV ,V2-COMMON/OPERATION.CV)'
+        run_chs(start_s, end_s, trends_s)
+
 
         print("===============tst_temp1 end==============")
 
@@ -724,6 +718,15 @@ class Soe_Db_Profile():
 
         dv_soe.close()
         dv_soe = None
+
+    def valid_db_profile(self):
+        """判断db_profile的有效性，无效可能是DeltaV SOE未运行"""
+        if isinstance(self.db_start_time, datetime):
+            return True
+        else:
+            log_args = [self.db_name]
+            add_log(30, 'fn:valid_profile(). soe db "{0[0]}" is not valid', log_args)
+            return False
 
 """ #not used?
 class Batch_Start_Log():
