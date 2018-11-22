@@ -15,6 +15,7 @@ from XF_common.XF_CHS import *
 
 BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
+DEF_APENS_PATH = r".\packed\apens.dtp"
 VESSEL_LAST_SCAN_SURFIX = "_last_scan.dtp"
 VESSEL_BATCH_ITEMS_SURFIX = "_batches.dtp"
 INIT_TIME_STRING = "2010-01-01 00:00:00"  #默认初始时间字符串
@@ -242,11 +243,14 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
-        """main test, [fn]complete_batch_item"""
+        """static_model"""
         print("===============tst_temp4 strat==============")
         start_s = datetime.now()
 
         main.model_init()
+        static_model = Static_Model()
+        static_model._load_available_pens()
+        print("look here") #debug
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
         for v in vessels.values():
@@ -727,6 +731,17 @@ class Soe_Db_Profile():
             log_args = [self.db_name]
             add_log(30, 'fn:valid_profile(). soe db "{0[0]}" is not valid', log_args)
             return False
+
+class Static_Model():
+    """静态模型"""
+    def __init__(self):
+        self.available_pens = []
+        self._load_available_pens()
+
+    def _load_available_pens(self):
+        _load = load(DEF_APENS_PATH)
+        if not _load:
+            self.available_pens = _load
 
 """ #not used?
 class Batch_Start_Log():
