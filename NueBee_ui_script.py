@@ -12,6 +12,7 @@ from XF_common.XF_PATH import list_file_names
 from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_1pt,read_mpt,XML_CONSTANT
 from XF_common.XF_DV_HIST import execute_xml, Value_Log, valid_batch_id #debug
 from XF_common.XF_CHS import *
+from XF_common.XF_TB_STATIC import Pen_Profile
 
 BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
@@ -28,6 +29,7 @@ vessels_batch_items = {} #Dict，存储类的实例
 ej_db_profile = None #<Soe_Db_Profile> for EJournal
 soe_db_profiles = [] #<list>, 存储Soe_Db_Profile实例
 soe_db_files = [] #<list>, .mdf的主文件名列表
+static_model = None
 
 class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
 
@@ -69,10 +71,12 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
 
     def model_init(self):
         """从文件读入批次列表和前次扫描信息，初始化vessels"""
-        global vessels
+        global vessels, static_model
         for vessel_no in VESSEL_NAME_LIST:
             v = Vessel(vessel_no)
             vessels[vessel_no] = v
+        static_model = Static_Model()
+        static_model._load_available_pens()
 
     def soe_dbs_profile(self):
         """在SOE Server上，在线的SOE存储文件的启止时间档案
@@ -148,13 +152,12 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             log_print("----------------------------------------")
         log_print("[fn] print_soe_db_profiles() end ================")
 
-    def clear_batches_table_contents(self):
+    def clear_vessel_batches_table_contents(self):
         """clear the contents of batches table"""
         self.tableWidget.setRowCount(0)
 
     def fill_vessel_batches_table(self,vessel):
         """fill the table with batch_items
-        -row_to_continue:<int>starting row to fill, begin with 0
         -vessel:<Vessel>"""
         _row = self.tableWidget.rowCount()
         self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(vessel.batch_items))
@@ -236,7 +239,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         main.model_init()
         main.clear_batches_table_contents()
         for v in vessels.values():
-            main.fill_batches_table(v)
+            main.fill_vessel_batches_table(v)
             #v.dump_vessel_last_scan()
             #v.dump_vessel_batch_items()
             v.print_vessel_last_scan()
@@ -248,9 +251,11 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         start_s = datetime.now()
 
         main.model_init()
-        static_model = Static_Model()
-        static_model._load_available_pens()
-        print("look here") #debug
+        #static_model = Static_Model()
+        #static_model._load_available_pens()
+        static_model.list_avail_pens()
+        print('look here') #debug
+        '''
         main.soe_dbs_profile()
         main.print_soe_db_profiles() #opitional
         for v in vessels.values():
@@ -272,6 +277,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             v.print_vessel_last_scan()
             v.dump_vessel_last_scan()
             v.dump_vessel_batch_items()
+        '''
 
         end_s = datetime.now()
         exec_time = end_s - start_s
@@ -740,8 +746,17 @@ class Static_Model():
 
     def _load_available_pens(self):
         _load = load(DEF_APENS_PATH)
-        if not _load:
+        if _load:
             self.available_pens = _load
+
+    def list_avail_pens(self):
+        log_print("[fn]Pen_Profile.list_pens()------start------")
+        i = 0
+        log_print("   #: Reference                                       EN_Description              EN_Parameter     CH_Description                     CH_Parameter")
+        for pen in self.available_pens:
+            i += 1
+            log_print("{:>4d}: {:<40} {:<24} {:<26} {:<24} {:<24}".format(i,pen.identity,pen.en_description,pen.en_parameter,pen.ch_description,pen.ch_parameter))
+        log_print("[fn]Pen_Profile.list_pens()------end------")
 
 """ #not used?
 class Batch_Start_Log():
