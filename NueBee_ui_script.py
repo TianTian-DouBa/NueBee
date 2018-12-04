@@ -1,4 +1,5 @@
 from NueBee_ui import Ui_MainWindow
+from AddTrendGroup_ui import Ui_Dialog_Add_Trend_Group
 from PyQt5 import QtWidgets
 import sys
 import threading
@@ -23,7 +24,9 @@ INIT_TIME_STRING = "2010-01-01 00:00:00"  #默认初始时间字符串
 VESSEL_NAME_LIST = ['V1','V2'] #to be modified according to Unit_info
 TIME_STAMP_ORDER = ('match','batch_item_early','last_log_early','no_log')
 RUNNING_EXPIRE_DAYS = 50 #超过此限值的Running Batch判断为‘underfined’
+LANGUAGE = ('EN','CH')
 
+language = LANGUAGE[1] #EN
 vessels = {} #Dict，存储Vessel类的实例
 vessels_batch_items = {} #Dict，存储类的实例
 ej_db_profile = None #<Soe_Db_Profile> for EJournal
@@ -43,17 +46,16 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         #self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00","%Y-%m-%d %H:%M:%S") #默认开始扫描时间
 
         #额外界面设置
-        self.tableWidget.setSelectionBehavior(1) #selectRows
-        self.tableWidget.setColumnCount(9)
-        _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
-        self.tableWidget.setHorizontalHeaderLabels(_h_header)
+
         #在此，可添加自定义的信号绑定
+        self.toolButton_add_group.clicked.connect(self.open_dialog_add_trend_group)
         self.pushButton_tst1.clicked.connect(self.tst_temp1) #test
         self.pushButton_tst2.clicked.connect(self.tst_temp2) #test
         self.pushButton_tst3.clicked.connect(self.tst_temp3) #test
         self.pushButton_tst4.clicked.connect(self.tst_temp4) #test
         self.pushButton_tst5.clicked.connect(self.tst_temp5) #test
-        self.pushButton_tst6.clicked.connect(self.tst_temp6) #test
+        self.pushButton_tst6.clicked.connect(self.tst_temp6)
+         #test
 
         #MainWindow加载后执行的内容
         if logable(40):
@@ -159,6 +161,10 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
     def fill_vessel_batches_table(self,vessel):
         """fill the table with batch_items
         -vessel:<Vessel>"""
+        self.tableWidget.setSelectionBehavior(1) #selectRows
+        self.tableWidget.setColumnCount(9)
+        _h_header = ['Equipment','Batch ID','Status','Start Time','End Time','Duration','Operation','Record Time','Comment']
+        self.tableWidget.setHorizontalHeaderLabels(_h_header)
         _row = self.tableWidget.rowCount()
         self.tableWidget.setRowCount(self.tableWidget.rowCount() + len(vessel.batch_items))
         self.tableWidget.setSortingEnabled(False) #workaround for sorting bug
@@ -184,9 +190,52 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             _row += 1
         self.tableWidget.setSortingEnabled(True) #workaround for sorting bug
 
+    def fill_avail_pens_table(self):
+        """fill the available pens"""
+        self.tableWidget_pens.setRowCount(0)
+        if not isinstance(static_model, Static_Model):
+            add_log(20, 'fn:fill_avail_pens_table() static_model is not Static_Model')
+            return
+        _row = 0
+        self.tableWidget_pens.setSelectionBehavior(1) #selectRows
+        self.tableWidget_pens.setColumnCount(3)
+        if language == LANGUAGE[0]: #EN
+            _h_header = ['Module','Parameter','Reference']
+        elif language == LANGUAGE[1]: #CH
+            _h_header = ['模块回路','参数','参数路径']
+        self.tableWidget_pens.setHorizontalHeaderLabels(_h_header)
+        self.tableWidget_pens.setRowCount(len(static_model.available_pens))
+        self.tableWidget_pens.setSortingEnabled(False)
+        for pen in static_model.available_pens:
+            _pen_identity = QtWidgets.QTableWidgetItem(pen.identity,0)
+            if language == LANGUAGE[0]: #EN
+                _pen_description = QtWidgets.QTableWidgetItem(pen.en_description,0)
+                _pen_parameter = QtWidgets.QTableWidgetItem(pen.en_parameter,0)
+            elif language == LANGUAGE[1]: #CH
+                _pen_description = QtWidgets.QTableWidgetItem(pen.ch_description,0)
+                _pen_parameter = QtWidgets.QTableWidgetItem(pen.ch_parameter,0)
+            else:
+                add_log(20, 'fn:fill_avail_pens_table() language selected is not valid')
+                return
+
+            self.tableWidget_pens.setItem(_row,0,_pen_description)
+            self.tableWidget_pens.setItem(_row,1,_pen_parameter)
+            self.tableWidget_pens.setItem(_row,2,_pen_identity)
+            _row += 1
+        self.tableWidget_pens.setSortingEnabled(True)
+
+    def open_dialog_add_trend_group(self):
+        """open the dialog of add_trend_group"""
+        self.diag = QtWidgets.QDialog()
+        self.diag.setModal(True)
+        self.ui = Ui_Dialog_Add_Trend_Group()
+        self.ui.setupUi(self.diag)
+        #to be continued, add diag buttom connections here
+        self.diag.show()
+
     def update_batches_table(self):
         """update batches table"""
-        self.clear_batches_table_contents()
+        self.clear_vessel_batches_table_contents()
         for v in vessels.values():
             start_time = v.return_scan_time()[1]
             if not isinstance(start_time,datetime):
@@ -253,7 +302,8 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         main.model_init()
         #static_model = Static_Model()
         #static_model._load_available_pens()
-        static_model.list_avail_pens()
+        #static_model.list_avail_pens()
+        main.fill_avail_pens_table()
         print('look here') #debug
         '''
         main.soe_dbs_profile()
@@ -285,14 +335,10 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp4 end==============")
 
     def tst_temp5(self):
-        """toggle set"""
+        """tst"""
         print("===============tst_temp5 strat==============")
-        if self.tableWidget.isSortingEnabled():
-            self.tableWidget.setSortingEnabled(False)
-            add_log(30,'tableWidget.setSortingEnabled=True')
-        else:
-            self.tableWidget.setSortingEnabled(True)
-            add_log(30,'tableWidget.setSortingEnabled=False')
+        for i in static_model.trend_groups:
+            print("trend group name: ",i.name)
         print("===============tst_temp5 end==============")
 
     def tst_temp6(self):
@@ -743,11 +789,28 @@ class Static_Model():
     def __init__(self):
         self.available_pens = []
         self._load_available_pens()
+        self.trend_groups = [] #to be modified read from file
 
     def _load_available_pens(self):
         _load = load(DEF_APENS_PATH)
         if _load:
             self.available_pens = _load
+
+    def valid_group_name(self, name):
+        """check if the new trend group name is valid
+        return: <bool>
+        -name: <str>"""
+        for group in self.trend_groups:
+            if name == group.name:
+                return False
+        return True
+
+    def add_trend_group(self,trend_group):
+        """add trend group to self.trend_groups
+        -trend_group: <Trend_Group>"""
+        global static_model
+        if isinstance(trend_group,Trend_Group):
+            static_model.trend_groups.append(trend_group)
 
     def list_avail_pens(self):
         log_print("[fn]Pen_Profile.list_pens()------start------")
@@ -757,6 +820,21 @@ class Static_Model():
             i += 1
             log_print("{:>4d}: {:<40} {:<24} {:<26} {:<24} {:<24}".format(i,pen.identity,pen.en_description,pen.en_parameter,pen.ch_description,pen.ch_parameter))
         log_print("[fn]Pen_Profile.list_pens()------end------")
+
+class Trend_Group():
+    def __new__(cls,name,description=""):
+        global static_model
+        if (name != '') and (name != None):
+            if static_model.valid_group_name(name):
+                obj = super().__new__(cls)
+                return obj
+        return None
+
+    def __init__(self,name,description=""):
+        self.name = name
+        self.description = description
+        print("look here, to be continued")
+
 
 """ #not used?
 class Batch_Start_Log():
