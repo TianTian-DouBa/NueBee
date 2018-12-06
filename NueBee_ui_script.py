@@ -26,7 +26,7 @@ TIME_STAMP_ORDER = ('match','batch_item_early','last_log_early','no_log')
 RUNNING_EXPIRE_DAYS = 50 #超过此限值的Running Batch判断为‘underfined’
 LANGUAGE = ('EN','CH')
 
-language = LANGUAGE[1] #EN
+language = LANGUAGE[0] #EN
 vessels = {} #Dict，存储Vessel类的实例
 vessels_batch_items = {} #Dict，存储类的实例
 ej_db_profile = None #<Soe_Db_Profile> for EJournal
@@ -46,9 +46,11 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         #self.DEF_START_TIME = datetime.strptime("2010-01-01 00:30:00","%Y-%m-%d %H:%M:%S") #默认开始扫描时间
 
         #额外界面设置
+        #self.plainTextEdit.setEnabled(False)
 
         #在此，可添加自定义的信号绑定
         self.toolButton_add_group.clicked.connect(self.open_dialog_add_trend_group)
+        self.listWidget.itemClicked.connect(self.trend_group_on_select)
         self.pushButton_tst1.clicked.connect(self.tst_temp1) #test
         self.pushButton_tst2.clicked.connect(self.tst_temp2) #test
         self.pushButton_tst3.clicked.connect(self.tst_temp3) #test
@@ -224,12 +226,19 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             _row += 1
         self.tableWidget_pens.setSortingEnabled(True)
 
+    def fill_trend_groups_list(self):
+        global static_model
+        self.listWidget.clear()
+        for group in static_model.trend_groups:
+            self.listWidget.addItem(group.name)
+
     def open_dialog_add_trend_group(self):
         """open the dialog of add_trend_group"""
         self.diag = QtWidgets.QDialog()
         self.diag.setModal(True)
         self.ui = Ui_Dialog_Add_Trend_Group()
         self.ui.setupUi(self.diag)
+        self.ui.buttonBox.accepted.connect(lambda: static_model.add_trend_group(self.ui.lineEdit.text(),self.ui.textEdit.toPlainText()))
         #to be continued, add diag buttom connections here
         self.diag.show()
 
@@ -252,6 +261,23 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             v.dump_vessel_last_scan()
             v.dump_vessel_batch_items()
             self.fill_vessel_batches_table(v)
+
+    def trend_group_on_select(self,item):
+        """update ui when the group is selected in listWidget
+        -item: <QListWidgetItem>"""
+        group_name = item.text()
+        for _group in iter(static_model.trend_groups):
+            if group_name == _group.name:
+                group = _group
+                self.plainTextEdit.setPlainText(group.description)
+                print("TBD181206, add trends here")
+                return
+        log_args = [item.text()]
+        add_log(10, 'fn:trend_group_on_select(). Item: "{0[0]}"  not found', log_args)
+
+        def fill_trends_table(self):
+            """fill tableWidget_Trends"""
+            print("TBD181206, add trends here")
 
     def tst_temp1(self):
         """call PHV"""
@@ -339,6 +365,8 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp5 strat==============")
         for i in static_model.trend_groups:
             print("trend group name: ",i.name)
+        self.fill_trend_groups_list()
+
         print("===============tst_temp5 end==============")
 
     def tst_temp6(self):
@@ -805,10 +833,12 @@ class Static_Model():
                 return False
         return True
 
-    def add_trend_group(self,trend_group):
+    def add_trend_group(self,name,description):
         """add trend group to self.trend_groups
-        -trend_group: <Trend_Group>"""
+        -name: <str>
+        -description: <str>"""
         global static_model
+        trend_group = Trend_Group(name,description)
         if isinstance(trend_group,Trend_Group):
             static_model.trend_groups.append(trend_group)
 
@@ -833,7 +863,7 @@ class Trend_Group():
     def __init__(self,name,description=""):
         self.name = name
         self.description = description
-        print("look here, to be continued")
+        print("034 look here, to be continued")
 
 
 """ #not used?
