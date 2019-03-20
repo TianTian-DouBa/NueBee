@@ -12,8 +12,9 @@ from XF_common.XF_LOG_MANAGE import add_log, logable, log_print
 from XF_common.XF_PATH import list_file_names
 from XF_common.XF_XML import create_raw_1pt_xml,create_raw_mpt_xml, generate_xml,valid_xml,read_1pt,read_mpt,XML_CONSTANT
 from XF_common.XF_DV_HIST import execute_xml, Value_Log, valid_batch_id #debug
-from XF_common.XF_CHS import *
+#from XF_common.XF_CHS import *
 from XF_common.XF_TB_STATIC import Pen_Profile
+from XF_common.XF_SO import *
 
 BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
@@ -370,9 +371,10 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp5 end==============")
 
     def tst_temp6(self):
-        """clear table"""
+        """.so"""
         print("===============tst_temp6 strat==============")
-        _run_chs()
+        init_so()
+        print("validate Key: ", valid_key())
         print("===============tst_temp6 end==============")
 
 class Vessel():
