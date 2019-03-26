@@ -363,18 +363,24 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
 
     def tst_temp5(self):
         """tst"""
-        print("===============tst_temp5 strat==============")
+        print("===============tst_temp5 machine active file==============")
+        so = SO()
+        so.gen_machine_active()
+        so = None
+        """
         for i in static_model.trend_groups:
             print("trend group name: ",i.name)
         self.fill_trend_groups_list()
+        """
 
         print("===============tst_temp5 end==============")
 
     def tst_temp6(self):
         """.so"""
         print("===============tst_temp6 strat==============")
-        init_so()
-        print("validate Key: ", valid_key())
+        so = SO()
+        print("validate Key: ", so.valid_key())
+        so = None
         print("===============tst_temp6 end==============")
 
 class Vessel():
