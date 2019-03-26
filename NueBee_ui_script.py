@@ -380,6 +380,12 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp6 strat==============")
         so = SO()
         print("validate Key: ", so.valid_key())
+        start_s = r'2018/10/31 22:28:12'
+        end_s = r'2018/10/31 22:58:12'
+        trends_s = r"SIM-001/SIN.CV, SIM-001/RAMP.CV, , , V1-COMMON/BATCH_ID.CV"
+        compare = False
+        startTime2_s = r'2018/08/19 10:15:17'
+        so.plot_trend(start_s,end_s,trends_s,compare,startTime2_s)
         so = None
         print("===============tst_temp6 end==============")
 
