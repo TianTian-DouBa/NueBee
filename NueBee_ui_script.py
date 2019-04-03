@@ -385,6 +385,8 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         trends_s = r"SIM-001/SIN.CV, SIM-001/RAMP.CV, , , V1-COMMON/BATCH_ID.CV"
         compare = False
         startTime2_s = r'2018/08/19 10:15:17'
+        print("so far so good 1001")
+        #so.pass_str("Hello World")
         so.plot_trend(start_s,end_s,trends_s,compare,startTime2_s)
         so = None
         print("===============tst_temp6 end==============")
