@@ -227,11 +227,25 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
             _row += 1
         self.tableWidget_pens.setSortingEnabled(True)
 
-    def fill_trend_groups_list(self):
+    def update_trend_groups_list(self):
         global static_model
-        self.listWidget.clear()
+        self.tableWidget_trends_group.setRowCount(0)
+        _row = 0
+        self.tableWidget_trends_group.setColumnCount(2)
+        if language == LANGUAGE[0]: #EN
+            _h_header = ['Group Name','Description']
+        elif language == LANGUAGE[1]: #CH
+            _h_header = ['趋势组','描述']
+        self.tableWidget_trends_group.setHorizontalHeaderLabels(_h_header)
+        self.tableWidget_trends_group.setRowCount(len(static_model.trend_groups))
+        self.tableWidget_trends_group.setSortingEnabled(False)
         for group in static_model.trend_groups:
-            self.listWidget.addItem(group.name)
+            _group_name = QtWidgets.QTableWidgetItem(group.name,0)
+            _group_description = QtWidgets.QTableWidgetItem(group.description,0)
+            self.tableWidget_trends_group.setItem(_row,0,_group_name)
+            self.tableWidget_trends_group.setItem(_row,1,_group_description)
+            _row += 1
+        self.tableWidget_trends_group.setSortingEnabled(True)
 
     def open_dialog_add_trend_group(self):
         """open the dialog of add_trend_group"""
@@ -367,12 +381,17 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         so = SO()
         so.gen_machine_active()
         so = None
-        """
-        for i in static_model.trend_groups:
-            print("trend group name: ",i.name)
-        self.fill_trend_groups_list()
-        """
 
+        print("--------------tst compare trend")
+        so = SO()
+        print("validate Key: ", so.valid_key())
+        start_s = r'2018/11/03 10:12:00'
+        end_s = r'2018/11/03 10:50:00'
+        trends_s = r"SIM-001/SIN.CV, SIM-001/RAMP.CV, , , V1-COMMON/BATCH_ID.CV"
+        compare = True
+        startTime2_s = r'2018/11/09 20:31:00'
+        so.plot_trend(start_s,end_s,trends_s,compare,startTime2_s)
+        so = None
         print("===============tst_temp5 end==============")
 
     def tst_temp6(self):
@@ -380,13 +399,11 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp6 strat==============")
         so = SO()
         print("validate Key: ", so.valid_key())
-        start_s = r'2018/10/31 22:28:12'
-        end_s = r'2018/10/31 22:58:12'
+        start_s = r'2018/11/03 10:12:00'
+        end_s = r'2018/11/03 10:50:00'
         trends_s = r"SIM-001/SIN.CV, SIM-001/RAMP.CV, , , V1-COMMON/BATCH_ID.CV"
         compare = False
-        startTime2_s = r'2018/08/19 10:15:17'
-        print("so far so good 1001")
-        #so.pass_str("Hello World")
+        startTime2_s = r'2018/11/09 20:31:00'
         so.plot_trend(start_s,end_s,trends_s,compare,startTime2_s)
         so = None
         print("===============tst_temp6 end==============")
@@ -845,7 +862,7 @@ class Static_Model():
         return: <bool>
         -name: <str>"""
         for group in self.trend_groups:
-            if name == group.name:
+            if name.upper() == group.name.upper():
                 return False
         return True
 
@@ -870,16 +887,23 @@ class Static_Model():
 class Trend_Group():
     def __new__(cls,name,description=""):
         global static_model
-        if (name != '') and (name != None):
-            if static_model.valid_group_name(name):
+        _name = name.strip()
+        if (_name != '') and (_name != None):
+            if static_model.valid_group_name(_name):
                 obj = super().__new__(cls)
                 return obj
         return None
 
     def __init__(self,name,description=""):
-        self.name = name
-        self.description = description
+        self.name = name.strip().upper()
+        self.description = description.strip()
         print("034 look here, to be continued")
+    
+    def insert_trend(self):
+        """insert the group into static_model.trend_groups"""
+        print("039 look here, to be continued")
+
+
 
 
 """ #not used?
