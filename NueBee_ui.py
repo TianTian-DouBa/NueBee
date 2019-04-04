@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Qt\TST\BatchNueBee\NueBee.ui'
+# Form implementation generated from reading ui file '\\192.168.3.33\Backup\Qt\TST\BatchNueBee\NueBee.ui'
 #
-# Created by: PyQt5 UI code generator 5.11.2
+# Created by: PyQt5 UI code generator 5.10.1
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -78,6 +78,9 @@ class Ui_MainWindow(object):
         self.gridLayout_3 = QtWidgets.QGridLayout(self.groupBox)
         self.gridLayout_3.setVerticalSpacing(7)
         self.gridLayout_3.setObjectName("gridLayout_3")
+        self.pushButton_2 = QtWidgets.QPushButton(self.groupBox)
+        self.pushButton_2.setObjectName("pushButton_2")
+        self.gridLayout_3.addWidget(self.pushButton_2, 0, 1, 1, 1)
         self.pushButton = QtWidgets.QPushButton(self.groupBox)
         self.pushButton.setObjectName("pushButton")
         self.gridLayout_3.addWidget(self.pushButton, 0, 2, 1, 1)
@@ -85,12 +88,11 @@ class Ui_MainWindow(object):
         self.toolButton_add_group.setMinimumSize(QtCore.QSize(28, 28))
         self.toolButton_add_group.setObjectName("toolButton_add_group")
         self.gridLayout_3.addWidget(self.toolButton_add_group, 0, 0, 1, 1)
-        self.pushButton_2 = QtWidgets.QPushButton(self.groupBox)
-        self.pushButton_2.setObjectName("pushButton_2")
-        self.gridLayout_3.addWidget(self.pushButton_2, 0, 1, 1, 1)
-        self.listWidget = QtWidgets.QListWidget(self.groupBox)
-        self.listWidget.setObjectName("listWidget")
-        self.gridLayout_3.addWidget(self.listWidget, 1, 0, 1, 3)
+        self.tableWidget_trends_group = QtWidgets.QTableWidget(self.groupBox)
+        self.tableWidget_trends_group.setObjectName("tableWidget_trends_group")
+        self.tableWidget_trends_group.setColumnCount(0)
+        self.tableWidget_trends_group.setRowCount(0)
+        self.gridLayout_3.addWidget(self.tableWidget_trends_group, 1, 0, 1, 3)
         self.verticalLayout_3.addWidget(self.groupBox)
         self.groupBox_2 = QtWidgets.QGroupBox(self.tab_trends)
         self.groupBox_2.setObjectName("groupBox_2")
@@ -152,7 +154,7 @@ class Ui_MainWindow(object):
         self.verticalLayout.addWidget(self.tabWidget)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1089, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1089, 23))
         self.menubar.setObjectName("menubar")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
@@ -160,7 +162,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -175,9 +177,9 @@ class Ui_MainWindow(object):
         self.pushButton_tst3.setText(_translate("MainWindow", "Test3"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_batches), _translate("MainWindow", "Batches"))
         self.groupBox.setTitle(_translate("MainWindow", "Trends Group"))
+        self.pushButton_2.setText(_translate("MainWindow", "SAVE"))
         self.pushButton.setText(_translate("MainWindow", "CANCEL"))
         self.toolButton_add_group.setText(_translate("MainWindow", "+"))
-        self.pushButton_2.setText(_translate("MainWindow", "SAVE"))
         self.groupBox_2.setTitle(_translate("MainWindow", "Selected Group Attributes"))
         self.groupBox_3.setTitle(_translate("MainWindow", "Trends"))
         self.toolButton_2.setText(_translate("MainWindow", "<"))

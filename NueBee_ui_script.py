@@ -51,7 +51,7 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
 
         #在此，可添加自定义的信号绑定
         self.toolButton_add_group.clicked.connect(self.open_dialog_add_trend_group)
-        self.listWidget.itemClicked.connect(self.trend_group_on_select)
+        #self.listWidget.itemClicked.connect(self.trend_group_on_select)
         self.pushButton_tst1.clicked.connect(self.tst_temp1) #test
         self.pushButton_tst2.clicked.connect(self.tst_temp2) #test
         self.pushButton_tst3.clicked.connect(self.tst_temp3) #test
