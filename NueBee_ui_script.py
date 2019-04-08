@@ -324,15 +324,11 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         print("===============tst_temp2 end==============")
 
     def tst_temp3(self):
-        """2nd fill batches table"""
+        """Pen_Slot"""
         print("===============tst_temp3 strat==============")
-        main.model_init()
-        main.clear_batches_table_contents()
-        for v in vessels.values():
-            main.fill_vessel_batches_table(v)
-            #v.dump_vessel_last_scan()
-            #v.dump_vessel_batch_items()
-            v.print_vessel_last_scan()
+        pen_slot1 = Pen_Slot("Vx-AI-1/PV.CV")
+        result = pen_slot1.verify_identity()
+        print("slot found pen? ", result)
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
@@ -897,13 +893,53 @@ class Trend_Group():
     def __init__(self,name,description=""):
         self.name = name.strip().upper()
         self.description = description.strip()
-        print("034 look here, to be continued")
+        self.pen_slots = {slot-1: None,
+                          slot-2: None,
+                          slot-3: None,
+                          slot-4: None,
+                          slot-5: None,
+                          slot-6: None,
+                          slot-7: None,
+                          slot-8: None}
     
     def insert_trend(self):
         """insert the group into static_model.trend_groups"""
         print("039 look here, to be continued")
 
+class Pen_Slot():
+    def __new__(cls, identity):
+        if isinstance(identity, str):
+            _identity = identity.strip().upper()
+            if len(_identity) > 0:
+                obj = super().__new__(cls)
+                return obj
+        if isinstance(identity, None):
+            obj = super().__new__(cls)
+            return obj
+        log_args = identity
+        add_log(30, 'fn:Pen_Slot.__new__() failed, identity: "{0[0]}"', log_args)
+        return None
 
+    def __init__(self, identity):
+        if identity == None:
+            self.identity = None
+        else:
+            self.identity = identity.strip().upper() #<str>
+        log_args = self.identity
+        add_log(40, 'fn:Pen_Slot.__init__() success, identity: "{0[0]}"', log_args)
+    
+    def verify_identity(self):
+        """verify if identity is available in static_module.available_pens
+        return: <True> found, <False> not found"""
+        global static_model
+        if self.identity == None:
+            return False
+        if isinstance(self.identity, str):
+            if len(self.identity) > 0:
+                for pen in static_model.available_pens:
+                    if self.identity.upper() == pen.identity.upper():
+                        return True
+        return False
 
 
 """ #not used?

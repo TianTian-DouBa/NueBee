@@ -7,3 +7,5 @@
 2019/04/03 15:27:43 cx_activiation.go, l:   389, [Info]     , [fn]PassStr.input:H
 2019/04/03 15:27:43 cx_activiation.go, l:   396, [Info]     , [fn]concat._res:ao
 2019/04/03 15:41:45 cx_activiation.go, l:   389, [Info]     , [fn]PassStr.input:Hello World
+2019/04/08 22:11:37 cx_fileop.go, l:    18, [Warning]  , [fn]ReadFileAll: err.Error()
+2019/04/08 22:11:37 cx_activiation.go, l:   354, [Error]    , [fn]ValidKey fail to read file. error:open .\ActiveKey.dt: The system cannot find the file specified.
