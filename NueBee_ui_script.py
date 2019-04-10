@@ -329,6 +329,9 @@ class MainWindow(Ui_MainWindow, QtWidgets.QMainWindow):
         pen_slot1 = Pen_Slot("Vx-AI-1/PV.CV")
         result = pen_slot1.verify_identity()
         print("slot found pen? ", result)
+        print("module:", pen_slot1.module)
+        print("parameter:", pen_slot1.parameter)
+        print("identity:", pen_slot1.identity)
         print("===============tst_temp3 end==============")
 
     def tst_temp4(self):
@@ -906,6 +909,54 @@ class Trend_Group():
         """insert the group into static_model.trend_groups"""
         print("039 look here, to be continued")
 
+class Pens_Slots():
+    def __init__(self, slot1 = None, slot2 = None, slot3 = None, slot4 = None, slot5 = None, slot6 = None, slot7 = None, slot8 = None):
+        """
+        if isinstance(slot1,str) and len(slot1.strip()) > 0:
+            self.slot1 = slot1.strip().upper()
+        else:
+            self.slot1 = None
+        if isinstance(slot2,str) and len(slot2.strip()) > 0:
+            self.slot2 = slot2.strip().upper()
+        else:
+            self.slot2 = None
+        """
+        if isinstance(slot1, Pen_Slot):
+            self.slot1 = slot1
+        else:
+            self.slot1 = None
+        if isinstance(slot2, Pen_Slot):
+            self.slot2 = slot2
+        else:
+            self.slot2 = None
+        if isinstance(slot3, Pen_Slot):
+            self.slot3 = slot3
+        else:
+            self.slot3 = None
+        if isinstance(slot4, Pen_Slot):
+            self.slot4 = slot4
+        else:
+            self.slot4 = None
+        if isinstance(slot5, Pen_Slot):
+            self.slot5 = slot5
+        else:
+            self.slot5 = None
+        if isinstance(slot6, Pen_Slot):
+            self.slot6 = slot6
+        else:
+            self.slot6 = None
+        if isinstance(slot7, Pen_Slot):
+            self.slot7 = slot7
+        else:
+            self.slot7 = None
+        if isinstance(slot8, Pen_Slot):
+            self.slot8 = slot8
+        else:
+            self.slot8 = None
+
+    
+
+
 class Pen_Slot():
     def __new__(cls, identity):
         if isinstance(identity, str):
@@ -913,7 +964,7 @@ class Pen_Slot():
             if len(_identity) > 0:
                 obj = super().__new__(cls)
                 return obj
-        if isinstance(identity, None):
+        if identity == None:
             obj = super().__new__(cls)
             return obj
         log_args = identity
@@ -927,6 +978,7 @@ class Pen_Slot():
             self.identity = identity.strip().upper() #<str>
         log_args = self.identity
         add_log(40, 'fn:Pen_Slot.__init__() success, identity: "{0[0]}"', log_args)
+        self.module, self.parameter = self.link_pen()
     
     def verify_identity(self):
         """verify if identity is available in static_module.available_pens
@@ -940,6 +992,22 @@ class Pen_Slot():
                     if self.identity.upper() == pen.identity.upper():
                         return True
         return False
+
+    def link_pen(self):
+        """use self.identity to get module and parameter"""
+        global static_model
+        if self.identity == None:
+            return(None, None)
+        identity = self.identity
+        for pen in static_model.available_pens:
+            if identity == pen.identity.upper():
+                if language == 'EN':
+                    module = pen.en_description
+                    parameter = pen.en_parameter
+                if language == 'CH':
+                    module = pen.ch_description
+                    parameter = pen.ch_parameter
+        return(module, parameter)
 
 
 """ #not used?
