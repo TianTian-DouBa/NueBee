@@ -896,14 +896,9 @@ class Trend_Group():
     def __init__(self,name,description=""):
         self.name = name.strip().upper()
         self.description = description.strip()
-        self.pen_slots = {slot-1: None,
-                          slot-2: None,
-                          slot-3: None,
-                          slot-4: None,
-                          slot-5: None,
-                          slot-6: None,
-                          slot-7: None,
-                          slot-8: None}
+        self.pens_slots = Pens_Slots()
+        log_args = [self.name, self.description]
+        add_log(30, 'Class:Trend_Group() created. name: "{0[0]}", description: "{0[1]}"', log_args)
     
     def insert_trend(self):
         """insert the group into static_model.trend_groups"""
