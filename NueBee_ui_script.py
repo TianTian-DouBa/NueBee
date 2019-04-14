@@ -19,6 +19,7 @@ from XF_common.XF_SO import *
 BATCH_STATUS = ('Undefined','Running','Completed','Void')
 DEF_PACKED_PATH = r".\packed" + "\\"
 DEF_APENS_PATH = r".\packed\apens.dtp"
+DEF_TRNGPS_PATH = r".\packed\trngps.dtp" #default trend_groups path
 VESSEL_LAST_SCAN_SURFIX = "_last_scan.dtp"
 VESSEL_BATCH_ITEMS_SURFIX = "_batches.dtp"
 INIT_TIME_STRING = "2010-01-01 00:00:00"  #默认初始时间字符串
@@ -855,24 +856,47 @@ class Static_Model():
         _load = load(DEF_APENS_PATH)
         if _load:
             self.available_pens = _load
+    
+    def _load_trend_groups(self):
+        _load = load(DEF_TRNGPS_PATH)
+        if _load:
+            self.trend_groups = _load
 
-    def valid_group_name(self, name):
+    def dump_trend_groups(self):
+        """将static_model.trend_groups导出到文件"""
+        serializing(self.trend_groups, DEF_TRNGPS_PATH)
+
+    def valid_new_group_name(self, name):
         """check if the new trend group name is valid
-        return: <bool>
+        return: valid: <str>.strip().upper(); invalid: None
         -name: <str>"""
-        for group in self.trend_groups:
-            if name.upper() == group.name.upper():
-                return False
-        return True
+        if isinstance(name, str):
+            _name = name.strip().upper()
+            if len(_name) <= 0:
+                log_args = [name]
+                add_log(20, 'fn:valid_new_group_name(). name: "{0[0]}" invalid', log_args)
+                return None
+            for group in self.trend_groups:
+                if _name == group.name.upper():
+                    log_args = [name]
+                    add_log(20, 'fn:valid_new_group_name(). name: "{0[0]}" duplicated', log_args)
+                    return None
+            return _name
+        else:
+            log_args = [name]
+            add_log(20, 'fn:valid_new_group_name(). name: "{0[0]}" is not <str>', log_args)
+            return None
 
     def add_trend_group(self,name,description):
         """add trend group to self.trend_groups
         -name: <str>
         -description: <str>"""
-        global static_model
-        trend_group = Trend_Group(name,description)
-        if isinstance(trend_group,Trend_Group):
-            static_model.trend_groups.append(trend_group)
+        _name = self.valid_new_group_name(name)
+        if _name != None:
+            trend_group = Trend_Group(_name,description)
+            if isinstance(trend_group,Trend_Group):
+                self.trend_groups.append(trend_group)
+                self.dump_trend_groups()
 
     def list_avail_pens(self):
         log_print("[fn]Pen_Profile.list_pens()------start------")
@@ -886,15 +910,15 @@ class Static_Model():
 class Trend_Group():
     def __new__(cls,name,description=""):
         global static_model
-        _name = name.strip()
-        if (_name != '') and (_name != None):
-            if static_model.valid_group_name(_name):
-                obj = super().__new__(cls)
-                return obj
+        if static_model.valid_new_group_name(name):
+            obj = super().__new__(cls)
+            return obj
+        Print("to be add popup infor here TODO0023, 'Duplicate or invalid Name'")`
         return None
 
     def __init__(self,name,description=""):
-        self.name = name.strip().upper()
+        global static_model
+        self.name = static_model.valid_new_group_name(name)
         self.description = description.strip()
         self.pens_slots = Pens_Slots()
         log_args = [self.name, self.description]
